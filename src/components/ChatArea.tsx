@@ -51,64 +51,88 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0%', minHeight: 0, background: 'white' }}>
-            {/* Welcome Screen if no messages */}
-            {messages.length === 0 && (
-                <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, overflow: 'auto' }}>
-                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm shrink-0">
-                        <span className="text-4xl">🤖</span>
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-                        Xin chào, {userName || 'Thầy/Cô'}!
-                    </h1>
-                    <p className="text-gray-500 max-w-md mx-auto text-lg mb-8 text-center">
-                        Tôi là trợ lý AI cá nhân của bạn. Hãy cho tôi biết bạn đang gặp vấn đề gì trong công việc giảng dạy?
-                    </p>
-
-                    <div className="grid md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
-                        {[
-                            { icon: '📝', text: 'Tôi muốn soạn giáo án...' },
-                            { icon: '📋', text: 'Tôi cần tạo đề thi...' },
-                            { icon: '📚', text: 'Tôi muốn tạo tài liệu...' },
-                        ].map((action, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => onSendMessage(action.text)}
-                                className="flex flex-col items-center p-6 bg-white border border-gray-200 rounded-xl hover:border-indigo-500 hover:shadow-md transition-all group text-left"
-                            >
-                                <span className="text-2xl mb-3 group-hover:scale-110 transition-transform">{action.icon}</span>
-                                <span className="font-medium text-gray-700 group-hover:text-indigo-600">{action.text}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Messages List */}
-            {messages.length > 0 && (
-                <div style={{ flex: '1 1 0%', overflowY: 'auto', minHeight: 0 }} className="custom-scrollbar">
-                    {messages.map((msg) => (
-                        <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
-                    ))}
-
-                    {isTyping && (
-                        <div className="flex gap-4 p-6 bg-gray-50">
-                            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                                <Sparkles size={16} className="animate-pulse" />
-                            </div>
-                            <div className="flex items-center gap-1 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
-                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
-                            </div>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {/* Scrollable content area - takes all space except input */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 110,
+                    overflowY: 'auto',
+                    background: 'white',
+                }}
+                className="custom-scrollbar"
+            >
+                {/* Welcome Screen if no messages */}
+                {messages.length === 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
+                        <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                            <span className="text-4xl">🤖</span>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-            )}
+                        <h1 className="text-3xl font-bold text-gray-900 mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                            Xin chào, {userName || 'Thầy/Cô'}!
+                        </h1>
+                        <p className="text-gray-500 max-w-md mx-auto text-lg mb-8 text-center">
+                            Tôi là trợ lý AI cá nhân của bạn. Hãy cho tôi biết bạn đang gặp vấn đề gì trong công việc giảng dạy?
+                        </p>
 
-            {/* Input Area */}
-            <div style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '16px', background: 'white' }}>
+                        <div className="grid md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
+                            {[
+                                { icon: '📝', text: 'Tôi muốn soạn giáo án...' },
+                                { icon: '📋', text: 'Tôi cần tạo đề thi...' },
+                                { icon: '📚', text: 'Tôi muốn tạo tài liệu...' },
+                            ].map((action, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => onSendMessage(action.text)}
+                                    className="flex flex-col items-center p-6 bg-white border border-gray-200 rounded-xl hover:border-indigo-500 hover:shadow-md transition-all group text-left"
+                                >
+                                    <span className="text-2xl mb-3 group-hover:scale-110 transition-transform">{action.icon}</span>
+                                    <span className="font-medium text-gray-700 group-hover:text-indigo-600">{action.text}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Messages */}
+                {messages.length > 0 && (
+                    <>
+                        {messages.map((msg) => (
+                            <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
+                        ))}
+
+                        {isTyping && (
+                            <div className="flex gap-4 p-6 bg-gray-50">
+                                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                    <Sparkles size={16} className="animate-pulse" />
+                                </div>
+                                <div className="flex items-center gap-1 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
+                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </>
+                )}
+            </div>
+
+            {/* Input Area - fixed at bottom */}
+            <div
+                style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    borderTop: '1px solid #e5e7eb',
+                    padding: '12px 16px',
+                }}
+            >
                 <div className="max-w-4xl mx-auto relative">
                     <textarea
                         ref={textareaRef}
@@ -120,8 +144,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         }}
                         onKeyDown={handleKeyDown}
                         placeholder="Nhập câu hỏi của bạn..."
-                        className="w-full bg-white border border-gray-300 text-gray-900 rounded-2xl pl-6 pr-14 py-4 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none custom-scrollbar transition-all"
-                        style={{ minHeight: 56, maxHeight: 192 }}
+                        className="w-full bg-white border border-gray-300 text-gray-900 rounded-2xl pl-6 pr-14 py-3 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none custom-scrollbar transition-all"
+                        style={{ minHeight: 48, maxHeight: 192 }}
                     />
                     <button
                         onClick={() => handleSubmit()}
@@ -134,7 +158,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
                     </button>
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-2">
+                <p className="text-center text-xs text-gray-400 mt-1">
                     AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
                 </p>
             </div>
