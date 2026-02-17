@@ -15,7 +15,6 @@ interface ChatAreaProps {
 export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const scrollToBottom = () => {
@@ -52,17 +51,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     };
 
     return (
-        <main className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
+        <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0%', minHeight: 0, background: 'white' }}>
             {/* Welcome Screen if no messages */}
             {messages.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500 overflow-y-auto">
+                <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, overflow: 'auto' }}>
                     <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm shrink-0">
                         <span className="text-4xl">🤖</span>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
                         Xin chào, {userName || 'Thầy/Cô'}!
                     </h1>
-                    <p className="text-gray-500 max-w-md mx-auto text-lg mb-8">
+                    <p className="text-gray-500 max-w-md mx-auto text-lg mb-8 text-center">
                         Tôi là trợ lý AI cá nhân của bạn. Hãy cho tôi biết bạn đang gặp vấn đề gì trong công việc giảng dạy?
                     </p>
 
@@ -87,32 +86,30 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
             {/* Messages List */}
             {messages.length > 0 && (
-                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar">
-                    <div className="pb-4">
-                        {messages.map((msg) => (
-                            <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
-                        ))}
+                <div style={{ flex: '1 1 0%', overflowY: 'auto', minHeight: 0 }} className="custom-scrollbar">
+                    {messages.map((msg) => (
+                        <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
+                    ))}
 
-                        {isTyping && (
-                            <div className="flex gap-4 p-6 bg-gray-50 animate-in fade-in slide-in-from-bottom-2">
-                                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                                    <Sparkles size={16} className="animate-pulse" />
-                                </div>
-                                <div className="flex items-center gap-1 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
-                                </div>
+                    {isTyping && (
+                        <div className="flex gap-4 p-6 bg-gray-50">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                <Sparkles size={16} className="animate-pulse" />
                             </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
+                            <div className="flex items-center gap-1 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
+                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
                 </div>
             )}
 
-            {/* Input Area - sticky at bottom, not absolute */}
-            <div className="shrink-0 bg-white border-t border-gray-200 p-4 md:px-8">
-                <div className="max-w-4xl mx-auto relative group">
+            {/* Input Area */}
+            <div style={{ flexShrink: 0, borderTop: '1px solid #e5e7eb', padding: '16px', background: 'white' }}>
+                <div className="max-w-4xl mx-auto relative">
                     <textarea
                         ref={textareaRef}
                         rows={1}
@@ -123,8 +120,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         }}
                         onKeyDown={handleKeyDown}
                         placeholder="Nhập câu hỏi của bạn..."
-                        className="w-full bg-white border border-gray-300 text-gray-900 rounded-2xl pl-6 pr-14 py-4 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none max-h-48 custom-scrollbar transition-all"
-                        style={{ minHeight: '56px' }}
+                        className="w-full bg-white border border-gray-300 text-gray-900 rounded-2xl pl-6 pr-14 py-4 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none custom-scrollbar transition-all"
+                        style={{ minHeight: 56, maxHeight: 192 }}
                     />
                     <button
                         onClick={() => handleSubmit()}
@@ -141,6 +138,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                     AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
                 </p>
             </div>
-        </main>
+        </div>
     );
 };
