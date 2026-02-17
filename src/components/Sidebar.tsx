@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
 
     return (
-        <aside className="w-80 bg-white border-r border-gray-200 flex flex-col h-full font-sans">
+        <aside style={{ width: 320, display: 'flex', flexDirection: 'column', height: '100%', background: 'white', borderRight: '1px solid #e5e7eb', fontFamily: 'sans-serif' }}>
             {/* Profile Card */}
             <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3 bg-indigo-50 p-3 rounded-xl">
