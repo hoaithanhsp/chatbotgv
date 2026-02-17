@@ -15,7 +15,7 @@ import {
 } from './services/chatStorage';
 import { downloadMarkdown, downloadWord } from './services/exportChat';
 import type { TeacherProfile, ChatSession, ChatMessage } from './types';
-import { Menu, Settings, Key, Cpu, FileText, Download } from 'lucide-react';
+import { Menu, Settings, Key, Cpu, FileText, Download, Plus } from 'lucide-react';
 
 // System Prompt Construction
 const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean) => {
@@ -295,6 +295,15 @@ function App() {
           <span className="font-bold text-gray-900">Trợ lý GV</span>
         </div>
 
+        {/* New Chat Button - Always visible */}
+        <button
+          onClick={handleNewChat}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-medium shadow-sm active:scale-95"
+        >
+          <Plus size={15} />
+          <span className="hidden sm:inline">Mới</span>
+        </button>
+
         {/* Model Selector */}
         <div className="hidden sm:flex items-center gap-1 ml-4 bg-gray-100 rounded-lg p-0.5">
           {getAvailableModels().map(model => (
@@ -385,8 +394,24 @@ function App() {
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* Sidebar */}
-        <div className={`fixed inset-y-0 left-0 top-14 z-50 w-80 bg-white transform transition-transform duration-300 ease-in-out md:relative md:top-0 md:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Sidebar - Desktop: always visible, Mobile: slide-in overlay */}
+        <div className={`hidden md:block md:relative md:top-0 w-80 bg-white shrink-0`}>
+          <Sidebar
+            profile={profile}
+            history={filteredHistory}
+            currentChatId={currentChatId}
+            onNewChat={handleNewChat}
+            onSelectChat={handleSelectChat}
+            onDeleteChat={handleDeleteChat}
+            onOpenSettings={() => setShowSettings(true)}
+            onRenameChat={handleRenameChat}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onShowBookmarks={() => setShowBookmarks(true)}
+          />
+        </div>
+        {/* Mobile Sidebar */}
+        <div className={`fixed inset-y-0 left-0 top-14 z-50 w-80 bg-white transform transition-transform duration-300 ease-in-out md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <Sidebar
             profile={profile}
             history={filteredHistory}
