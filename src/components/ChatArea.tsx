@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Send, Loader2, Sparkles } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { MessageBubble } from './MessageBubble';
@@ -13,8 +13,9 @@ interface ChatAreaProps {
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark }) => {
-    const [input, setInput] = React.useState('');
+    const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const scrollToBottom = () => {
@@ -46,16 +47,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     const adjustHeight = () => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 192) + 'px';
         }
     };
 
     return (
-        <main className="flex-1 flex flex-col h-full bg-white relative">
+        <main className="flex-1 flex flex-col h-full bg-white overflow-hidden">
             {/* Welcome Screen if no messages */}
             {messages.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
-                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500 overflow-y-auto">
+                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm shrink-0">
                         <span className="text-4xl">🤖</span>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
@@ -86,8 +87,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
             {/* Messages List */}
             {messages.length > 0 && (
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <div className="min-h-full pb-32">
+                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="pb-4">
                         {messages.map((msg) => (
                             <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
                         ))}
@@ -109,8 +110,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                 </div>
             )}
 
-            {/* Input Area */}
-            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-200 p-4 pb-6 md:px-8 md:pb-8">
+            {/* Input Area - sticky at bottom, not absolute */}
+            <div className="shrink-0 bg-white border-t border-gray-200 p-4 md:px-8">
                 <div className="max-w-4xl mx-auto relative group">
                     <textarea
                         ref={textareaRef}
@@ -136,7 +137,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
                     </button>
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-3">
+                <p className="text-center text-xs text-gray-400 mt-2">
                     AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
                 </p>
             </div>
