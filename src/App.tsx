@@ -395,7 +395,7 @@ function App() {
         )}
 
         {/* Sidebar - Desktop: always visible, Mobile: slide-in overlay */}
-        <div className={`hidden md:block md:relative md:top-0 w-80 bg-white shrink-0`}>
+        <div className="hidden md:flex md:relative md:top-0 w-80 bg-white shrink-0 h-full">
           <Sidebar
             profile={profile}
             history={filteredHistory}
@@ -428,7 +428,7 @@ function App() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col h-full relative">
+        <div className="flex-1 flex flex-col min-h-0 relative">
           {/* Mobile Model Selector */}
           <div className="sm:hidden flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-100 overflow-x-auto">
             {getAvailableModels().map(model => (
