@@ -4,45 +4,43 @@ import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
 import { SetupModal } from './components/SetupModal';
 import { SettingsModal } from './components/SettingsModal';
-import { ToolLibraryModal } from './components/ToolLibraryModal';
+import { DocumentManager } from './components/DocumentManager';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
-import type { TeacherProfile, ChatSession, AITool, ChatMessage } from './types';
-import { Menu, Settings, Key, Cpu } from 'lucide-react';
-
-// Mock tools for now (or load from local constant/DB)
-const MOCK_TOOLS: AITool[] = [
-  {
-    id: '1', name: 'Giáo án năng lực số', description: 'Ứng dụng AI hỗ trợ soạn bài giảng hiệu quả...',
-    url: 'https://khbdnlstht.vercel.app/', category: 'Soạn giáo án', tags: ['giáo án', 'soạn bài'],
-    image_url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBIE44YLmhCRlZ3Pw7oTgkNrrvG2N7wte06c-7AJmQQYVooZ1qgYN12zdWNPybDN3kr-mYvbqXmt5kHPjyE93rYbf0tGJzU5WL8GhAjjMiFIo8qboNMzZiZdoLf1ynES93GEZC5x1wT8eGCr8vWXTPbLBsqOcUZMir1MvMpeAk2Ga2MPmQfE7j_fbx3bgL7DkQ_FYD9hp4u5Ke9zJHLBvC3xSgVO2hbeDpalY4fL-eC6I-txIYiCUHOCPuAlOCixQhRlGd9Ew_sOk_h',
-    is_popular: true
-  },
-  {
-    id: '2', name: 'Sinh đề biến thể', description: 'Trợ lý AI đắc lực giúp giáo viên tạo đề thi thông minh...',
-    url: 'https://examgenprotht.vercel.app/', category: 'Tạo đề thi', tags: ['đề thi', 'biến thể'],
-    image_url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuARmaOhszpY5Z1FkUe1znQlRZLVn8C4RMzAgLTs-HWwKFKrXP26zFIDJerKO8i7cWs7sgXydetMwKtJCx2wFwe4WqxTlR19qtcTbnECIau7vuzCqQrSQzKuj_7yvmqpFwbQFv42hQsrSc8r5jRXLKlskN7Y8pCUn34-VodBqo1Kk2HGtMw-8hYXCPPo9cHDbfoyzy90uScgcII5Ymt7ABrHHVSU41m_qqvFew-VF9Ewvk4R7F9I4HYxOjhtSJ5n-XM6SvrldjMqtci3'
-  },
-];
+import { buildDocumentContext } from './services/documents';
+import type { TeacherProfile, ChatSession, ChatMessage } from './types';
+import { Menu, Settings, Key, Cpu, FileText } from 'lucide-react';
 
 // System Prompt Construction
-const constructSystemPrompt = (profile: TeacherProfile, tools: AITool[]) => {
-  return `Bạn là trợ lý AI chuyên nghiệp dành cho giáo viên Việt Nam.
-  NHIỆM VỤ:
-  1. Lắng nghe vấn đề của giáo viên.
-  2. Phân tích nhu cầu và gợi ý công cụ AI phù hợp từ thư viện (nếu có).
-  3. Hướng dẫn chi tiết cách sử dụng.
-  4. Trả lời câu hỏi follow-up.
-  
-  PROFILE GIÁO VIÊN:
-  Tên: ${profile.name}
-  Môn: ${profile.subject}
-  Cấp: ${profile.school_level}
-  
-  THƯ VIỆN CÔNG CỤ:
-  ${JSON.stringify(tools.map(t => ({ name: t.name, description: t.description, url: t.url, category: t.category })), null, 2)}
-  
-  Hãy trả lời bằng tiếng Việt thân thiện, chuyên nghiệp. Định dạng Markdown đẹp mắt.`;
+const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean) => {
+  return `Bạn là trợ lý AI thông minh và toàn diện dành cho giáo viên Việt Nam.
+
+## VAI TRÒ
+Bạn là một chuyên gia giáo dục, có thể:
+- Hỗ trợ soạn giáo án, bài giảng, đề kiểm tra
+- Tư vấn phương pháp giảng dạy hiện đại
+- Gợi ý công cụ AI, phần mềm, website hữu ích từ BẤT KỲ nguồn nào (Google, Microsoft, Canva, Quizlet, Kahoot, ChatGPT, v.v.)
+- Phân tích, tóm tắt, giải thích tài liệu giáo dục
+- Trả lời câu hỏi chuyên môn liên quan đến việc dạy và học
+
+## NGUYÊN TẮC
+1. **Đa dạng nguồn**: KHÔNG giới hạn gợi ý ở một hệ thống/website cụ thể nào. Hãy gợi ý công cụ/tài nguyên TỐT NHẤT từ mọi nguồn (miễn phí, có phí đều được - ưu tiên miễn phí).
+2. **Thực tế**: Đề xuất giải pháp thực tế, dễ áp dụng cho giáo viên Việt Nam.
+3. **Cập nhật**: Ưu tiên kiến thức mới nhất về giáo dục, chương trình 2018, công nghệ giáo dục.
+4. **Linh hoạt**: Nếu giáo viên đã upload tài liệu, hãy tham khảo và sử dụng nội dung đó một cách thông minh khi câu hỏi liên quan.
+${hasDocuments ? '5. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}
+
+## PROFILE GIÁO VIÊN
+- Tên: ${profile.name}
+- Môn: ${profile.subject}
+- Cấp: ${profile.school_level}
+${profile.school_name ? `- Trường: ${profile.school_name}` : ''}
+
+## ĐỊNH DẠNG TRẢ LỜI
+- Sử dụng Markdown đẹp mắt (heading, bullet, bold, code block)
+- Khi gợi ý công cụ/website, luôn kèm **link trực tiếp** nếu có
+- Với mỗi gợi ý, nêu rõ: ưu điểm, cách sử dụng, độ phù hợp
+- Trả lời bằng tiếng Việt thân thiện, chuyên nghiệp, dễ hiểu`;
 };
 
 function App() {
@@ -50,7 +48,6 @@ function App() {
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -58,6 +55,8 @@ function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
+  const [showDocManager, setShowDocManager] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
 
   useEffect(() => {
     const apiKey = getGeminiApiKey();
@@ -113,9 +112,13 @@ function App() {
     setIsTyping(true);
 
     try {
+      // Build document context if any docs selected
+      const docContext = await buildDocumentContext(selectedDocIds);
+      const systemPrompt = constructSystemPrompt(profile, selectedDocIds.length > 0) + docContext;
+
       const historyForGemini = [
-        { role: 'user', parts: [{ text: constructSystemPrompt(profile, MOCK_TOOLS) }] },
-        { role: 'model', parts: [{ text: "Tôi đã hiểu thông tin. Tôi sẵn sàng hỗ trợ bạn." }] },
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: "Tôi đã hiểu thông tin và tài liệu tham khảo. Tôi sẵn sàng hỗ trợ bạn." }] },
         ...messages.map(m => ({
           role: m.role === 'user' ? 'user' : 'model',
           parts: [{ text: m.text }]
@@ -188,13 +191,27 @@ function App() {
 
         <div className="flex-1" />
 
+        {/* Documents Button */}
+        <button
+          onClick={() => setShowDocManager(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors text-xs font-medium"
+        >
+          <FileText size={15} />
+          <span className="hidden sm:inline">Tài liệu</span>
+          {selectedDocIds.length > 0 && (
+            <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {selectedDocIds.length}
+            </span>
+          )}
+        </button>
+
         {/* Settings / API Key Button - ALWAYS VISIBLE */}
         <button
           onClick={() => setShowSettings(true)}
           className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors group"
         >
           <Key size={16} className="text-gray-500 group-hover:text-indigo-600" />
-          <span className="text-xs font-medium text-red-500">Lấy API key để sử dụng app</span>
+          <span className="text-xs font-medium text-red-500 hidden sm:inline">Lấy API key để sử dụng app</span>
           <Settings size={14} className="text-gray-400" />
         </button>
       </header>
@@ -265,10 +282,11 @@ function App() {
         }}
       />
 
-      <ToolLibraryModal
-        isOpen={showLibrary}
-        onClose={() => setShowLibrary(false)}
-        tools={MOCK_TOOLS}
+      <DocumentManager
+        isOpen={showDocManager}
+        onClose={() => setShowDocManager(false)}
+        selectedDocIds={selectedDocIds}
+        onSelectionChange={setSelectedDocIds}
       />
     </div>
   );
