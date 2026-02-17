@@ -9,9 +9,10 @@ interface ChatAreaProps {
     isTyping: boolean;
     onSendMessage: (text: string) => void;
     userName: string;
+    onBookmark?: (msg: ChatMessage) => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark }) => {
     const [input, setInput] = React.useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +89,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <div className="min-h-full pb-32">
                         {messages.map((msg) => (
-                            <MessageBubble key={msg.id} message={msg} />
+                            <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
                         ))}
 
                         {isTyping && (

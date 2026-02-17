@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
 import { SetupModal } from './components/SetupModal';
@@ -8,8 +8,14 @@ import { DocumentManager } from './components/DocumentManager';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { buildDocumentContext } from './services/documents';
+import {
+  getSessions, saveSessions, deleteSession, renameSession,
+  getMessages, saveMessages, generateTitle,
+  getBookmarks, saveBookmark, removeBookmark,
+} from './services/chatStorage';
+import { downloadMarkdown, downloadWord } from './services/exportChat';
 import type { TeacherProfile, ChatSession, ChatMessage } from './types';
-import { Menu, Settings, Key, Cpu, FileText } from 'lucide-react';
+import { Menu, Settings, Key, Cpu, FileText, Download } from 'lucide-react';
 
 // System Prompt Construction
 const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean) => {
@@ -57,7 +63,11 @@ function App() {
   const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
   const [showDocManager, setShowDocManager] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // Load saved sessions on mount
   useEffect(() => {
     const apiKey = getGeminiApiKey();
     const userProfile = getTeacherProfile();
@@ -66,16 +76,39 @@ function App() {
       setShowSetup(true);
     } else if (userProfile) {
       setProfile(userProfile);
-      setChatHistory([
-        { id: '1', title: 'Chào mừng', created_at: new Date().toISOString() }
-      ]);
-      setCurrentChatId('1');
-      setMessages([{
-        id: 'welcome', role: 'model', text: `Chào thầy/cô ${userProfile.name}! Tôi có thể giúp gì cho thầy/cô hôm nay?`, timestamp: new Date().toISOString()
-      }]);
+
+      // Load persisted sessions
+      const savedSessions = getSessions();
+      if (savedSessions.length > 0) {
+        setChatHistory(savedSessions);
+        const lastId = savedSessions[0].id;
+        setCurrentChatId(lastId);
+        setMessages(getMessages(lastId));
+      } else {
+        // First time — create initial chat
+        const initId = Date.now().toString();
+        const initSession: ChatSession = { id: initId, title: 'Chào mừng', created_at: new Date().toISOString() };
+        const welcomeMsg: ChatMessage = {
+          id: 'welcome', role: 'model',
+          text: `Chào thầy/cô ${userProfile.name}! Tôi có thể giúp gì cho thầy/cô hôm nay?`,
+          timestamp: new Date().toISOString(),
+        };
+        setChatHistory([initSession]);
+        setCurrentChatId(initId);
+        setMessages([welcomeMsg]);
+        saveSessions([initSession]);
+        saveMessages(initId, [welcomeMsg]);
+      }
     }
     setLoading(false);
   }, []);
+
+  // Save messages whenever they change
+  useEffect(() => {
+    if (currentChatId && messages.length > 0) {
+      saveMessages(currentChatId, messages);
+    }
+  }, [messages, currentChatId]);
 
   const handleSetupComplete = (apiKey: string, sbUrl: string, sbKey: string, newProfile: TeacherProfile) => {
     setGeminiApiKey(apiKey);
@@ -86,11 +119,18 @@ function App() {
     setProfile(newProfile);
     setShowSetup(false);
 
-    setChatHistory([{ id: '1', title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() }]);
-    setCurrentChatId('1');
-    setMessages([{
-      id: 'welcome', role: 'model', text: `Chào ${newProfile.name}! Hệ thống đã sẵn sàng. 🎉`, timestamp: new Date().toISOString()
-    }]);
+    const initId = Date.now().toString();
+    const initSession: ChatSession = { id: initId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() };
+    const welcomeMsg: ChatMessage = {
+      id: 'welcome_setup', role: 'model',
+      text: `Chào ${newProfile.name}! Hệ thống đã sẵn sàng. 🎉`,
+      timestamp: new Date().toISOString(),
+    };
+    setChatHistory([initSession]);
+    setCurrentChatId(initId);
+    setMessages([welcomeMsg]);
+    saveSessions([initSession]);
+    saveMessages(initId, [welcomeMsg]);
   };
 
   const handleModelChange = (model: string) => {
@@ -99,7 +139,7 @@ function App() {
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!profile) return;
+    if (!profile || !currentChatId) return;
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -111,8 +151,18 @@ function App() {
     setMessages(prev => [...prev, newMessage]);
     setIsTyping(true);
 
+    // Auto-title: if this is the first user message, update title
+    const isFirstUserMsg = messages.filter(m => m.role === 'user').length === 0;
+    if (isFirstUserMsg) {
+      const newTitle = generateTitle(text);
+      setChatHistory(prev => {
+        const updated = prev.map(s => s.id === currentChatId ? { ...s, title: newTitle } : s);
+        saveSessions(updated);
+        return updated;
+      });
+    }
+
     try {
-      // Build document context if any docs selected
       const docContext = await buildDocumentContext(selectedDocIds);
       const systemPrompt = constructSystemPrompt(profile, selectedDocIds.length > 0) + docContext;
 
@@ -152,11 +202,79 @@ function App() {
 
   const handleNewChat = () => {
     const newId = Date.now().toString();
-    setChatHistory(prev => [{ id: newId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() }, ...prev]);
+    const newSession: ChatSession = { id: newId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() };
+    setChatHistory(prev => {
+      const updated = [newSession, ...prev];
+      saveSessions(updated);
+      return updated;
+    });
     setCurrentChatId(newId);
     setMessages([]);
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
+
+  const handleSelectChat = useCallback((id: string) => {
+    // Save current messages before switching
+    if (currentChatId && messages.length > 0) {
+      saveMessages(currentChatId, messages);
+    }
+    setCurrentChatId(id);
+    setMessages(getMessages(id));
+    setSidebarOpen(false);
+  }, [currentChatId, messages]);
+
+  const handleDeleteChat = useCallback((id: string) => {
+    deleteSession(id);
+    setChatHistory(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      saveSessions(updated);
+      if (id === currentChatId) {
+        if (updated.length > 0) {
+          setCurrentChatId(updated[0].id);
+          setMessages(getMessages(updated[0].id));
+        } else {
+          handleNewChat();
+        }
+      }
+      return updated;
+    });
+  }, [currentChatId]);
+
+  const handleRenameChat = useCallback((id: string, newTitle: string) => {
+    renameSession(id, newTitle);
+    setChatHistory(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, title: newTitle } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleBookmarkMessage = useCallback((msg: ChatMessage) => {
+    const session = chatHistory.find(s => s.id === currentChatId);
+    saveBookmark(currentChatId || '', session?.title || '', msg);
+  }, [currentChatId, chatHistory]);
+
+  const handleRemoveBookmark = useCallback((messageId: string) => {
+    removeBookmark(messageId);
+  }, []);
+
+  // Export handlers
+  const handleExportMarkdown = () => {
+    const session = chatHistory.find(s => s.id === currentChatId);
+    downloadMarkdown(session?.title || 'chat', messages);
+    setShowExportMenu(false);
+  };
+
+  const handleExportWord = async () => {
+    const session = chatHistory.find(s => s.id === currentChatId);
+    await downloadWord(session?.title || 'chat', messages);
+    setShowExportMenu(false);
+  };
+
+  // Filtered chat history for search
+  const filteredHistory = searchQuery.trim()
+    ? chatHistory.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : chatHistory;
 
   if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
 
@@ -191,6 +309,46 @@ function App() {
 
         <div className="flex-1" />
 
+        {/* Export Button */}
+        {messages.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors text-xs font-medium"
+            >
+              <Download size={15} />
+              <span className="hidden sm:inline">Tải xuống</span>
+            </button>
+            {showExportMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-52 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    onClick={handleExportMarkdown}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  >
+                    <span className="text-lg">📝</span>
+                    <div>
+                      <div className="font-medium text-gray-900">Markdown (.md)</div>
+                      <div className="text-xs text-gray-500">Dạng văn bản thuần</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleExportWord}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  >
+                    <span className="text-lg">📄</span>
+                    <div>
+                      <div className="font-medium text-gray-900">Word (.docx)</div>
+                      <div className="text-xs text-gray-500">Có định dạng đẹp</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Documents Button */}
         <button
           onClick={() => setShowDocManager(true)}
@@ -205,7 +363,7 @@ function App() {
           )}
         </button>
 
-        {/* Settings / API Key Button - ALWAYS VISIBLE */}
+        {/* Settings / API Key Button */}
         <button
           onClick={() => setShowSettings(true)}
           className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors group"
@@ -227,12 +385,16 @@ function App() {
         <div className={`fixed inset-y-0 left-0 top-14 z-50 w-80 bg-white transform transition-transform duration-300 ease-in-out md:relative md:top-0 md:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <Sidebar
             profile={profile}
-            history={chatHistory}
+            history={filteredHistory}
             currentChatId={currentChatId}
             onNewChat={handleNewChat}
-            onSelectChat={(id) => { setCurrentChatId(id); setSidebarOpen(false); }}
-            onDeleteChat={(id) => setChatHistory(prev => prev.filter(c => c.id !== id))}
+            onSelectChat={handleSelectChat}
+            onDeleteChat={handleDeleteChat}
             onOpenSettings={() => setShowSettings(true)}
+            onRenameChat={handleRenameChat}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onShowBookmarks={() => setShowBookmarks(true)}
           />
         </div>
 
@@ -259,6 +421,7 @@ function App() {
             isTyping={isTyping}
             onSendMessage={handleSendMessage}
             userName={profile?.name || ''}
+            onBookmark={handleBookmarkMessage}
           />
         </div>
       </div>
@@ -288,6 +451,47 @@ function App() {
         selectedDocIds={selectedDocIds}
         onSelectionChange={setSelectedDocIds}
       />
+
+      {/* Bookmarks Modal */}
+      {showBookmarks && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowBookmarks(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">⭐ Tin nhắn đã lưu</h2>
+              <button onClick={() => setShowBookmarks(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <span className="text-gray-500 text-xl">✕</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {getBookmarks().length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-4xl mb-3">📌</p>
+                  <p>Chưa có tin nhắn nào được ghim.</p>
+                  <p className="text-sm mt-1">Nhấn nút ⭐ trên tin nhắn AI để ghim.</p>
+                </div>
+              ) : (
+                getBookmarks().map(b => (
+                  <div key={b.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{b.sessionTitle}</span>
+                        <span className="text-xs text-gray-400 ml-2">{new Date(b.bookmarkedAt).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                      <button
+                        onClick={() => { handleRemoveBookmark(b.message.id); setShowBookmarks(false); setTimeout(() => setShowBookmarks(true), 50); }}
+                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                      >
+                        Bỏ ghim
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-700 line-clamp-4 whitespace-pre-wrap">{b.message.text.substring(0, 300)}{b.message.text.length > 300 ? '...' : ''}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS documents (
   content TEXT NOT NULL, -- extracted text content
   chunk_count INTEGER DEFAULT 1,
   tags TEXT[] DEFAULT '{}',
+  folder TEXT DEFAULT '', -- folder/category name
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

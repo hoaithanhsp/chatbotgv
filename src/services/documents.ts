@@ -11,6 +11,7 @@ export interface Document {
     content: string;
     chunk_count: number;
     tags: string[];
+    folder: string;
     created_at: string;
 }
 
@@ -100,11 +101,10 @@ const splitIntoChunks = (text: string): string[] => {
 
 // ========== SUPABASE CRUD ==========
 
-export const saveDocument = async (title: string, content: string, fileType: string, fileSize: number, tags: string[] = []): Promise<Document | null> => {
+export const saveDocument = async (title: string, content: string, fileType: string, fileSize: number, tags: string[] = [], folder: string = ''): Promise<Document | null> => {
     const supabase = getSupabaseClient();
     if (!supabase) {
-        // Fallback: save to localStorage
-        return saveDocumentLocal(title, content, fileType, fileSize, tags);
+        return saveDocumentLocal(title, content, fileType, fileSize, tags, folder);
     }
 
     const chunks = splitIntoChunks(content);
@@ -116,17 +116,17 @@ export const saveDocument = async (title: string, content: string, fileType: str
             title,
             file_type: fileType,
             file_size: fileSize,
-            content: content.substring(0, 50000), // First 50k chars in main record
+            content: content.substring(0, 50000),
             chunk_count: chunks.length,
             tags,
+            folder,
         })
         .select()
         .single();
 
     if (docError) {
         console.error('Error saving document:', docError);
-        // Fallback to localStorage
-        return saveDocumentLocal(title, content, fileType, fileSize, tags);
+        return saveDocumentLocal(title, content, fileType, fileSize, tags, folder);
     }
 
     // Save chunks
@@ -156,7 +156,7 @@ export const getDocuments = async (): Promise<Document[]> => {
 
     const { data, error } = await supabase
         .from('documents')
-        .select('id, title, file_type, file_size, chunk_count, tags, created_at')
+        .select('id, title, file_type, file_size, chunk_count, tags, folder, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -210,6 +210,30 @@ export const deleteDocument = async (docId: string): Promise<boolean> => {
     return true;
 };
 
+export const updateDocumentTags = async (docId: string, tags: string[]): Promise<boolean> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+        const docs = getLocalDocs();
+        const doc = docs.find(d => d.id === docId);
+        if (doc) { doc.tags = tags; setLocalDocs(docs); }
+        return true;
+    }
+    const { error } = await supabase.from('documents').update({ tags }).eq('id', docId);
+    return !error;
+};
+
+export const updateDocumentFolder = async (docId: string, folder: string): Promise<boolean> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+        const docs = getLocalDocs();
+        const doc = docs.find(d => d.id === docId);
+        if (doc) { doc.folder = folder; setLocalDocs(docs); }
+        return true;
+    }
+    const { error } = await supabase.from('documents').update({ folder }).eq('id', docId);
+    return !error;
+};
+
 // ========== LOCAL STORAGE FALLBACK ==========
 
 const LOCAL_KEY = 'chatbot_documents';
@@ -222,6 +246,7 @@ interface LocalDoc {
     content: string;
     chunk_count: number;
     tags: string[];
+    folder: string;
     created_at: string;
 }
 
@@ -241,15 +266,16 @@ const setLocalDocs = (docs: LocalDoc[]) => {
     }
 };
 
-const saveDocumentLocal = (title: string, content: string, fileType: string, fileSize: number, tags: string[]): Document => {
+const saveDocumentLocal = (title: string, content: string, fileType: string, fileSize: number, tags: string[], folder: string): Document => {
     const doc: LocalDoc = {
         id: crypto.randomUUID(),
         title,
         file_type: fileType,
         file_size: fileSize,
-        content: content.substring(0, 100000), // Limit for localStorage
+        content: content.substring(0, 100000),
         chunk_count: Math.ceil(content.length / CHUNK_SIZE),
         tags,
+        folder,
         created_at: new Date().toISOString(),
     };
     const docs = getLocalDocs();

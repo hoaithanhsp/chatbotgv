@@ -1,21 +1,31 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star } from 'lucide-react';
 import type { ChatMessage } from '../types';
+import { isBookmarked } from '../services/chatStorage';
 
 interface MessageBubbleProps {
     message: ChatMessage;
+    onBookmark?: (msg: ChatMessage) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmark }) => {
     const isUser = message.role === 'user';
     const [copied, setCopied] = React.useState(false);
+    const [starred, setStarred] = React.useState(() => isBookmarked(message.id));
 
     const handleCopy = () => {
         navigator.clipboard.writeText(message.text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleStar = () => {
+        if (onBookmark) {
+            onBookmark(message);
+            setStarred(true);
+        }
     };
 
     return (
@@ -78,6 +88,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                         >
                             {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                             {copied ? 'Đã sao chép' : 'Sao chép'}
+                        </button>
+                        <button
+                            onClick={handleStar}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${starred
+                                ? 'text-yellow-600 bg-yellow-50'
+                                : 'text-gray-500 hover:bg-gray-100'
+                                }`}
+                            title="Ghim tin nhắn"
+                        >
+                            <Star size={14} fill={starred ? 'currentColor' : 'none'} />
+                            {starred ? 'Đã ghim' : 'Ghim'}
                         </button>
                         <div className="flex-1" />
                         <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
