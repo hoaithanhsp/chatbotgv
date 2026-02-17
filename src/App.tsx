@@ -388,14 +388,14 @@ function App() {
       </header>
 
       {/* === MAIN LAYOUT === */}
-      <div className="flex flex-1 overflow-hidden">
+      <div style={{ display: 'flex', flex: '1 1 0%', overflow: 'hidden', minHeight: 0 }}>
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 bg-black/50 z-40" style={{ display: window.innerWidth >= 768 ? 'none' : undefined }} onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* Sidebar - Desktop: always visible, Mobile: slide-in overlay */}
-        <div className="hidden md:flex md:relative md:top-0 w-80 bg-white shrink-0 h-full">
+        {/* Sidebar - Desktop */}
+        <div style={{ width: 320, flexShrink: 0, display: window.innerWidth >= 768 ? 'flex' : 'none', height: '100%' }}>
           <Sidebar
             profile={profile}
             history={filteredHistory}
@@ -411,40 +411,26 @@ function App() {
           />
         </div>
         {/* Mobile Sidebar */}
-        <div className={`fixed inset-y-0 left-0 top-14 z-50 w-80 bg-white transform transition-transform duration-300 ease-in-out md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <Sidebar
-            profile={profile}
-            history={filteredHistory}
-            currentChatId={currentChatId}
-            onNewChat={handleNewChat}
-            onSelectChat={handleSelectChat}
-            onDeleteChat={handleDeleteChat}
-            onOpenSettings={() => setShowSettings(true)}
-            onRenameChat={handleRenameChat}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onShowBookmarks={() => setShowBookmarks(true)}
-          />
-        </div>
+        {sidebarOpen && window.innerWidth < 768 && (
+          <div style={{ position: 'fixed', top: 56, left: 0, bottom: 0, width: 320, zIndex: 50, background: 'white' }}>
+            <Sidebar
+              profile={profile}
+              history={filteredHistory}
+              currentChatId={currentChatId}
+              onNewChat={handleNewChat}
+              onSelectChat={handleSelectChat}
+              onDeleteChat={handleDeleteChat}
+              onOpenSettings={() => setShowSettings(true)}
+              onRenameChat={handleRenameChat}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onShowBookmarks={() => setShowBookmarks(true)}
+            />
+          </div>
+        )}
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* Mobile Model Selector */}
-          <div className="sm:hidden flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-100 overflow-x-auto">
-            {getAvailableModels().map(model => (
-              <button
-                key={model}
-                onClick={() => handleModelChange(model)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap transition-all ${selectedModel === model
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-gray-500 bg-gray-100 hover:bg-gray-200'
-                  }`}
-              >
-                {model.replace('gemini-', '').replace('-preview', '')}
-              </button>
-            ))}
-          </div>
-
+        <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
           <ChatArea
             messages={messages}
             isTyping={isTyping}
