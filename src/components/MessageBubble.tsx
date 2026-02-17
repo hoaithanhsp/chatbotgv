@@ -1,6 +1,10 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { isBookmarked } from '../services/chatStorage';
@@ -16,6 +20,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
     const [starred, setStarred] = React.useState(() => isBookmarked(message.id));
 
     const handleCopy = () => {
+        // Copy raw text (keeps LaTeX formulas as-is)
         navigator.clipboard.writeText(message.text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -49,6 +54,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                         message.text
                     ) : (
                         <ReactMarkdown
+                            remarkPlugins={[remarkMath, remarkGfm]}
+                            rehypePlugins={[rehypeKatex]}
                             components={{
                                 h1: ({ node, ...props }) => <h1 className="text-xl font-bold text-gray-900 mt-6 mb-4" {...props} />,
                                 h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-gray-800 mt-5 mb-3" {...props} />,
@@ -57,6 +64,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                 ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
                                 li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                                 p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
+                                // Table styling
+                                table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-4 rounded-lg border border-gray-200">
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm" {...props} />
+                                    </div>
+                                ),
+                                thead: ({ node, ...props }) => <thead className="bg-indigo-50" {...props} />,
+                                tbody: ({ node, ...props }) => <tbody className="bg-white divide-y divide-gray-100" {...props} />,
+                                tr: ({ node, ...props }) => <tr className="hover:bg-gray-50 transition-colors" {...props} />,
+                                th: ({ node, ...props }) => (
+                                    <th className="px-4 py-2.5 text-left font-semibold text-indigo-800 text-xs uppercase tracking-wider border-b-2 border-indigo-200" {...props} />
+                                ),
+                                td: ({ node, ...props }) => (
+                                    <td className="px-4 py-2.5 text-gray-700 border-b border-gray-100" {...props} />
+                                ),
                                 code: ({ node, inline, className, children, ...props }: any) => {
                                     return !inline ? (
                                         <div className="bg-gray-900 rounded-lg p-4 my-4 overflow-x-auto text-gray-100 text-sm font-mono">
@@ -70,7 +92,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                         </code>
                                     )
                                 },
-                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-gray-200 pl-4 py-1 my-4 italic text-gray-600" {...props} />,
+                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-200 pl-4 py-1 my-4 italic text-gray-600 bg-indigo-50/50 rounded-r-lg" {...props} />,
                                 a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
                             }}
                         >
@@ -84,7 +106,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                         <button
                             onClick={handleCopy}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-                            title="Sao chép"
+                            title="Sao chép (giữ nguyên LaTeX)"
                         >
                             {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                             {copied ? 'Đã sao chép' : 'Sao chép'}
