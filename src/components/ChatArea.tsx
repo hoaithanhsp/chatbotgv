@@ -52,7 +52,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     };
 
     return (
-        <main className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
             {/* Welcome Screen if no messages */}
             {messages.length === 0 && (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500 overflow-y-auto">
