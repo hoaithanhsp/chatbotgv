@@ -192,9 +192,12 @@ function App() {
         />
       </div>
 
-      <SetupModal onSubmit={handleSetupComplete} />
-      {showSetup && <div className="fixed inset-0 z-50 bg-white" />} {/* Cover everything if setup is showing (handled by modal but this prevents flash) */}
-      {showSetup && <SetupModal onSubmit={handleSetupComplete} />}
+      {showSetup && (
+        <>
+          <div className="fixed inset-0 z-50 bg-white" />
+          <SetupModal onSubmit={handleSetupComplete} />
+        </>
+      )}
 
       <SettingsModal
         isOpen={showSettings}

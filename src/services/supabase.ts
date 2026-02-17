@@ -1,16 +1,27 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { TeacherProfile } from '../types';
 
-const SUPABASE_URL = localStorage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = localStorage.getItem('supabase_anon_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Lazy-initialized Supabase client to prevent crash when URL is not yet configured
+let _supabaseClient: SupabaseClient | null = null;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const getSupabaseClient = (): SupabaseClient | null => {
+    if (_supabaseClient) return _supabaseClient;
+
+    const url = localStorage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
+    const key = localStorage.getItem('supabase_anon_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+    if (!url || !key) return null; // Not configured yet, return null safely
+
+    _supabaseClient = createClient(url, key);
+    return _supabaseClient;
+};
 
 // Helpers
 export const setSupabaseConfig = (url: string, key: string) => {
     localStorage.setItem('supabase_url', url);
     localStorage.setItem('supabase_anon_key', key);
-    window.location.reload(); // Simple reload to re-init client
+    // Reset cached client so it gets re-created with new config
+    _supabaseClient = null;
 };
 
 export const getTeacherProfile = (): TeacherProfile | null => {
@@ -20,6 +31,4 @@ export const getTeacherProfile = (): TeacherProfile | null => {
 
 export const saveTeacherProfile = (profile: TeacherProfile) => {
     localStorage.setItem('teacher_profile', JSON.stringify(profile));
-    // Also save to Supabase if connected
-    // supabase.from('teachers').upsert(profile)...
 };
