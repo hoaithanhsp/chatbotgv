@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer theme {
+  :root {
+    --color-primary: #4F46E5;
+    /* Indigo */
+    --color-primary-hover: #4338CA;
+    --color-secondary: #10B981;
+    /* Green */
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
