@@ -55,7 +55,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                     ) : (
                         <ReactMarkdown
                             remarkPlugins={[remarkMath, remarkGfm]}
-                            rehypePlugins={[rehypeKatex]}
+                            rehypePlugins={[[rehypeKatex, { strict: false }]]}
                             components={{
                                 h1: ({ node, ...props }) => <h1 className="text-xl font-bold text-gray-900 mt-6 mb-4" {...props} />,
                                 h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-gray-800 mt-5 mb-3" {...props} />,
