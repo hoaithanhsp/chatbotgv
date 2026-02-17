@@ -201,6 +201,10 @@ function App() {
   };
 
   const handleNewChat = () => {
+    // Save current chat before switching
+    if (currentChatId && messages.length > 0) {
+      saveMessages(currentChatId, messages);
+    }
     const newId = Date.now().toString();
     const newSession: ChatSession = { id: newId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() };
     setChatHistory(prev => {
