@@ -1,18 +1,62 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @layer theme {
   :root {
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+
     --color-primary: #4F46E5;
-    /* Indigo */
-    --color-primary-hover: #4338CA;
-    --color-secondary: #10B981;
-    /* Green */
+    /* Indigo 600 */
+    --color-primary-light: #818CF8;
+    /* Indigo 400 */
+    --color-primary-dark: #3730A3;
+    /* Indigo 800 */
+
+    --color-secondary: #0EA5E9;
+    /* Sky 500 */
+    --color-accent: #8B5CF6;
+    /* Violet 500 */
+
+    --color-surface: #ffffff;
+    --color-surface-translucent: rgba(255, 255, 255, 0.8);
+
+    --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
   }
 }
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-slate-50 text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700;
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    @apply tracking-tight font-bold text-slate-900;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+
+  .glass-button {
+    @apply bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600;
+  }
+
+  .card-hover {
+    @apply hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-out;
   }
 }
 

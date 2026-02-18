@@ -425,14 +425,17 @@ function App() {
       </header>
 
       {/* === MAIN LAYOUT === */}
-      <div style={{ display: 'flex', flex: '1 1 0%', overflow: 'hidden', minHeight: 0 }}>
+      <div className="flex flex-1 overflow-hidden min-h-0 relative">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-40" style={{ display: window.innerWidth >= 768 ? 'none' : undefined }} onClick={() => setSidebarOpen(false)} />
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
 
         {/* Sidebar - Desktop */}
-        <div style={{ width: 320, flexShrink: 0, display: window.innerWidth >= 768 ? 'flex' : 'none', height: '100%' }}>
+        <div className="hidden md:flex w-80 shrink-0 h-full">
           <Sidebar
             profile={profile}
             history={filteredHistory}
@@ -447,35 +450,49 @@ function App() {
             onShowBookmarks={() => setShowBookmarks(true)}
           />
         </div>
+
         {/* Mobile Sidebar */}
-        {sidebarOpen && window.innerWidth < 768 && (
-          <div style={{ position: 'fixed', top: 56, left: 0, bottom: 0, width: 320, zIndex: 50, background: 'white' }}>
+        {sidebarOpen && (
+          <div className="fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-2xl md:hidden transform transition-transform duration-300 ease-in-out">
             <Sidebar
               profile={profile}
               history={filteredHistory}
               currentChatId={currentChatId}
-              onNewChat={handleNewChat}
-              onSelectChat={handleSelectChat}
+              onNewChat={() => {
+                handleNewChat();
+                setSidebarOpen(false);
+              }}
+              onSelectChat={(id) => {
+                handleSelectChat(id);
+                setSidebarOpen(false);
+              }}
               onDeleteChat={handleDeleteChat}
-              onOpenSettings={() => setShowSettings(true)}
+              onOpenSettings={() => {
+                setShowSettings(true);
+                setSidebarOpen(false);
+              }}
               onRenameChat={handleRenameChat}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              onShowBookmarks={() => setShowBookmarks(true)}
+              onShowBookmarks={() => {
+                setShowBookmarks(true);
+                setSidebarOpen(false);
+              }}
             />
           </div>
         )}
 
-        {/* Chat Area */}
-        <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
-          <ChatArea
-            messages={messages}
-            isTyping={isTyping}
-            onSendMessage={handleSendMessage}
-            userName={profile?.name || ''}
-            onBookmark={handleBookmarkMessage}
-          />
-        </div>
+        <main className="flex-1 flex flex-col relative w-full h-full bg-white shadow-2xl z-0 overflow-hidden">
+          <div className="flex-1 min-h-0 relative h-full">
+            <ChatArea
+              messages={messages}
+              isTyping={isTyping}
+              onSendMessage={handleSendMessage}
+              userName={profile?.name || ''}
+              onBookmark={handleBookmarkMessage}
+            />
+          </div>
+        </main>
       </div>
 
       {/* === MODALS === */}

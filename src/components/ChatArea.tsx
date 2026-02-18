@@ -51,46 +51,44 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     };
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            {/* Scrollable content area - takes all space except input */}
+        <div className="relative w-full h-full bg-slate-50/50">
+            {/* Scrollable content area */}
             <div
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 110,
-                    overflowY: 'auto',
-                    background: 'white',
-                }}
-                className="custom-scrollbar"
+                className="absolute inset-0 bottom-[110px] overflow-y-auto custom-scrollbar scroll-smooth"
             >
                 {/* Welcome Screen if no messages */}
                 {messages.length === 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
-                        <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                            <span className="text-4xl">🤖</span>
+                    <div className="flex flex-col items-center justify-center min-h-full p-8 animate-in fade-in duration-500">
+                        <div className="relative mb-8 group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl ring-1 ring-slate-900/5">
+                                <span className="text-5xl animate-bounce-slow">🤖</span>
+                            </div>
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+
+                        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600 mb-4 text-center tracking-tight">
                             Xin chào, {userName || 'Thầy/Cô'}!
                         </h1>
-                        <p className="text-gray-500 max-w-md mx-auto text-lg mb-8 text-center">
-                            Tôi là trợ lý AI cá nhân của bạn. Hãy cho tôi biết bạn đang gặp vấn đề gì trong công việc giảng dạy?
+                        <p className="text-slate-500 max-w-lg mx-auto text-lg mb-10 text-center leading-relaxed">
+                            Tôi là trợ lý AI cá nhân của bạn. Hôm nay chúng ta sẽ cùng nhau soạn giáo án, tạo đề thi hay làm gì nhỉ?
                         </p>
 
                         <div className="grid md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
                             {[
-                                { icon: '📝', text: 'Tôi muốn soạn giáo án...' },
-                                { icon: '📋', text: 'Tôi cần tạo đề thi...' },
-                                { icon: '📚', text: 'Tôi muốn tạo tài liệu...' },
+                                { icon: '📝', title: 'Soạn giáo án', text: 'Hỗ trợ soạn giáo án chi tiết theo công văn mới', color: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300' },
+                                { icon: '📋', title: 'Tạo đề thi', text: 'Tạo đề trắc nghiệm và tự luận có ma trận', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-300' },
+                                { icon: '💡', title: 'Ý tưởng dạy học', text: 'Gợi ý phương pháp dạy học tích cực', color: 'bg-amber-50 text-amber-600 border-amber-100 hover:border-amber-300' },
                             ].map((action, idx) => (
                                 <button
                                     key={idx}
-                                    onClick={() => onSendMessage(action.text)}
-                                    className="flex flex-col items-center p-6 bg-white border border-gray-200 rounded-xl hover:border-indigo-500 hover:shadow-md transition-all group text-left"
+                                    onClick={() => onSendMessage(action.title)}
+                                    className={`flex flex-col items-start p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group hover:-translate-y-1 ${action.color.split(' ')[3]}`}
                                 >
-                                    <span className="text-2xl mb-3 group-hover:scale-110 transition-transform">{action.icon}</span>
-                                    <span className="font-medium text-gray-700 group-hover:text-indigo-600">{action.text}</span>
+                                    <div className={`p-3 rounded-xl mb-3 ${action.color.split(' ').slice(0, 2).join(' ')}`}>
+                                        <span className="text-2xl">{action.icon}</span>
+                                    </div>
+                                    <span className="font-bold text-slate-800 mb-1">{action.title}</span>
+                                    <span className="text-sm text-slate-500 text-left leading-snug">{action.text}</span>
                                 </button>
                             ))}
                         </div>
@@ -99,68 +97,61 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
                 {/* Messages */}
                 {messages.length > 0 && (
-                    <>
+                    <div className="max-w-4xl mx-auto py-6 px-4">
                         {messages.map((msg) => (
                             <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
                         ))}
 
                         {isTyping && (
-                            <div className="flex gap-4 p-6 bg-gray-50">
-                                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                                    <Sparkles size={16} className="animate-pulse" />
+                            <div className="flex gap-4 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                    <Sparkles size={18} className="animate-pulse" />
                                 </div>
-                                <div className="flex items-center gap-1 bg-white px-4 py-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-1.5 bg-white px-5 py-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
                                     <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></span>
+                                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></span>
                                 </div>
                             </div>
                         )}
-                        <div ref={messagesEndRef} />
-                    </>
+                        <div ref={messagesEndRef} className="h-4" />
+                    </div>
                 )}
             </div>
 
-            {/* Input Area - fixed at bottom */}
-            <div
-                style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: 'white',
-                    borderTop: '1px solid #e5e7eb',
-                    padding: '12px 16px',
-                }}
-            >
-                <div className="max-w-4xl mx-auto relative">
-                    <textarea
-                        ref={textareaRef}
-                        rows={1}
-                        value={input}
-                        onChange={(e) => {
-                            setInput(e.target.value);
-                            adjustHeight();
-                        }}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Nhập câu hỏi của bạn..."
-                        className="w-full bg-white border border-gray-300 text-gray-900 rounded-2xl pl-6 pr-14 py-3 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none custom-scrollbar transition-all"
-                        style={{ minHeight: 48, maxHeight: 192 }}
-                    />
-                    <button
-                        onClick={() => handleSubmit()}
-                        disabled={!input.trim() || isTyping}
-                        className={`absolute right-3 bottom-3 p-2 rounded-xl transition-all ${input.trim() && !isTyping
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                    >
-                        {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-                    </button>
+            {/* Input Area */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-indigo-50 p-4 z-10 transition-all duration-300">
+                <div className="max-w-4xl mx-auto relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl opacity-20 group-focus-within:opacity-40 transition duration-300 blur"></div>
+                    <div className="relative flex items-end gap-2 p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
+                        <textarea
+                            ref={textareaRef}
+                            rows={1}
+                            value={input}
+                            onChange={(e) => {
+                                setInput(e.target.value);
+                                adjustHeight();
+                            }}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Nhập câu hỏi hoặc yêu cầu của thầy cô..."
+                            className="w-full max-h-48 bg-transparent border-0 text-slate-800 placeholder:text-slate-400 focus:ring-0 resize-none py-3 px-3 custom-scrollbar leading-relaxed"
+                            style={{ minHeight: 44 }}
+                        />
+                        <button
+                            onClick={() => handleSubmit()}
+                            disabled={!input.trim() || isTyping}
+                            className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${input.trim() && !isTyping
+                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                }`}
+                        >
+                            {isTyping ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                        </button>
+                    </div>
+                    <p className="text-center text-[10px] text-slate-400 mt-2 font-medium tracking-wide uppercase">
+                        AI có thể mắc lỗi • Hãy kiểm tra thông tin quan trọng
+                    </p>
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-1">
-                    AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
-                </p>
             </div>
         </div>
     );
