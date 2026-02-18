@@ -2,16 +2,24 @@ export interface PromptTemplate {
     id: string;
     title: string;
     description: string;
-    category: 'giao-an' | 'de-thi' | 'nhan-xet' | 'skkn' | 'phuong-phap' | 'khac';
+    category: string;
     icon: string;
     prompt: string;
     variables?: string[];
     subjects?: string[];
     levels?: string[];
     slashCommand?: string;
+    isCustom?: boolean;
 }
 
-export const TEMPLATE_CATEGORIES = [
+export interface TemplateCategory {
+    id: string;
+    label: string;
+    icon: string;
+    isCustom?: boolean;
+}
+
+const DEFAULT_CATEGORIES: TemplateCategory[] = [
     { id: 'all', label: 'Tất cả', icon: '📚' },
     { id: 'giao-an', label: 'Giáo án', icon: '📝' },
     { id: 'de-thi', label: 'Đề thi', icon: '📋' },
@@ -19,7 +27,80 @@ export const TEMPLATE_CATEGORIES = [
     { id: 'skkn', label: 'SKKN', icon: '📖' },
     { id: 'phuong-phap', label: 'Phương pháp', icon: '💡' },
     { id: 'khac', label: 'Khác', icon: '🔧' },
-] as const;
+];
+
+// ========== localStorage helpers ==========
+const CUSTOM_TEMPLATES_KEY = 'custom_prompt_templates';
+const CUSTOM_CATEGORIES_KEY = 'custom_template_categories';
+
+export function loadCustomTemplates(): PromptTemplate[] {
+    try {
+        const data = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch { return []; }
+}
+
+export function saveCustomTemplates(templates: PromptTemplate[]) {
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(templates));
+}
+
+export function loadCustomCategories(): TemplateCategory[] {
+    try {
+        const data = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch { return []; }
+}
+
+export function saveCustomCategories(cats: TemplateCategory[]) {
+    localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(cats));
+}
+
+export function addCustomTemplate(template: Omit<PromptTemplate, 'id' | 'isCustom'>): PromptTemplate {
+    const customs = loadCustomTemplates();
+    const newTemplate: PromptTemplate = { ...template, id: 'custom-' + Date.now(), isCustom: true };
+    customs.push(newTemplate);
+    saveCustomTemplates(customs);
+    return newTemplate;
+}
+
+export function updateCustomTemplate(id: string, updates: Partial<PromptTemplate>) {
+    const customs = loadCustomTemplates();
+    const idx = customs.findIndex(t => t.id === id);
+    if (idx >= 0) {
+        customs[idx] = { ...customs[idx], ...updates };
+        saveCustomTemplates(customs);
+    }
+}
+
+export function deleteCustomTemplate(id: string) {
+    const customs = loadCustomTemplates().filter(t => t.id !== id);
+    saveCustomTemplates(customs);
+}
+
+export function addCustomCategory(label: string, icon: string): TemplateCategory {
+    const customs = loadCustomCategories();
+    const newCat: TemplateCategory = { id: 'cat-' + Date.now(), label, icon, isCustom: true };
+    customs.push(newCat);
+    saveCustomCategories(customs);
+    return newCat;
+}
+
+export function deleteCustomCategory(id: string) {
+    const customs = loadCustomCategories().filter(c => c.id !== id);
+    saveCustomCategories(customs);
+}
+
+// ========== Merged getters ==========
+export function getAllCategories(): TemplateCategory[] {
+    return [...DEFAULT_CATEGORIES, ...loadCustomCategories()];
+}
+
+export function getAllTemplates(): PromptTemplate[] {
+    return [...PROMPT_TEMPLATES, ...loadCustomTemplates()];
+}
+
+export const TEMPLATE_CATEGORIES = DEFAULT_CATEGORIES;
+
 
 export const PROMPT_TEMPLATES: PromptTemplate[] = [
     // ==================== GIÁO ÁN ====================

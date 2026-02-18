@@ -12,9 +12,12 @@ interface ChatAreaProps {
     userName: string;
     onBookmark?: (msg: ChatMessage) => void;
     onOpenTemplates?: () => void;
+    onOpenTemplatesWithCategory?: (category: string) => void;
+    pendingInput?: string;
+    onPendingInputConsumed?: () => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates, onOpenTemplatesWithCategory, pendingInput, onPendingInputConsumed }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -73,6 +76,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
+    // Handle pending input from template selection
+    useEffect(() => {
+        if (pendingInput) {
+            setInput(pendingInput);
+            onPendingInputConsumed?.();
+            setTimeout(() => {
+                textareaRef.current?.focus();
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 192) + 'px';
+                }
+            }, 100);
+        }
+    }, [pendingInput]);
 
     useEffect(() => {
         scrollToBottom();
@@ -218,13 +236,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
                         <div className="grid md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
                             {[
-                                { icon: '📝', title: 'Soạn giáo án', text: 'Hỗ trợ soạn giáo án chi tiết theo công văn mới', color: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300' },
-                                { icon: '📋', title: 'Tạo đề thi', text: 'Tạo đề trắc nghiệm và tự luận có ma trận', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-300' },
-                                { icon: '💡', title: 'Ý tưởng dạy học', text: 'Gợi ý phương pháp dạy học tích cực', color: 'bg-amber-50 text-amber-600 border-amber-100 hover:border-amber-300' },
+                                { icon: '📝', title: 'Soạn giáo án', text: 'Hỗ trợ soạn giáo án chi tiết theo công văn mới', color: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300', category: 'giao-an' },
+                                { icon: '📋', title: 'Tạo đề thi', text: 'Tạo đề trắc nghiệm và tự luận có ma trận', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-300', category: 'de-thi' },
+                                { icon: '💡', title: 'Ý tưởng dạy học', text: 'Gợi ý phương pháp dạy học tích cực', color: 'bg-amber-50 text-amber-600 border-amber-100 hover:border-amber-300', category: 'phuong-phap' },
                             ].map((action, idx) => (
                                 <button
                                     key={idx}
-                                    onClick={() => onSendMessage(action.title)}
+                                    onClick={() => onOpenTemplatesWithCategory?.(action.category)}
                                     className={`flex flex-col items-start p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 group hover:-translate-y-1 ${action.color.split(' ')[3]}`}
                                 >
                                     <div className={`p-3 rounded-xl mb-3 ${action.color.split(' ').slice(0, 2).join(' ')}`}>
@@ -344,8 +362,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                             onClick={toggleVoice}
                             title={isListening ? 'Dừng ghi âm' : 'Nói để nhập văn bản'}
                             className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${isListening
-                                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
-                                    : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50'
+                                ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
+                                : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50'
                                 }`}
                         >
                             {isListening ? <MicOff size={20} /> : <Mic size={20} />}

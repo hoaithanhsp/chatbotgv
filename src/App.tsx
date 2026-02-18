@@ -77,6 +77,8 @@ function App() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
+  const [pendingInput, setPendingInput] = useState('');
+  const [templateCategory, setTemplateCategory] = useState('');
 
   // Load saved sessions on mount
   useEffect(() => {
@@ -492,7 +494,10 @@ function App() {
               onSendMessage={handleSendMessage}
               userName={profile?.name || ''}
               onBookmark={handleBookmarkMessage}
-              onOpenTemplates={() => setShowTemplatePanel(true)}
+              onOpenTemplates={() => { setTemplateCategory(''); setShowTemplatePanel(true); }}
+              onOpenTemplatesWithCategory={(cat) => { setTemplateCategory(cat); setShowTemplatePanel(true); }}
+              pendingInput={pendingInput}
+              onPendingInputConsumed={() => setPendingInput('')}
             />
           </div>
         </main>
@@ -527,9 +532,10 @@ function App() {
       <PromptTemplatePanel
         isOpen={showTemplatePanel}
         onClose={() => setShowTemplatePanel(false)}
+        initialCategory={templateCategory}
         onSelectTemplate={(prompt) => {
           setShowTemplatePanel(false);
-          handleSendMessage(prompt);
+          setPendingInput(prompt);
         }}
       />
 
