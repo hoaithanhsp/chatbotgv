@@ -17,24 +17,33 @@ import { downloadMarkdown, downloadWord } from './services/exportChat';
 import type { TeacherProfile, ChatSession, ChatMessage } from './types';
 import { Menu, Settings, Key, Cpu, FileText, Download, Plus } from 'lucide-react';
 
+import { RECOMMENDED_AI_TOOLS } from './data/aiTools';
+
 // System Prompt Construction
 const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean) => {
+  const toolsList = RECOMMENDED_AI_TOOLS.map(t => `- **${t.name}**: ${t.description} (Link: ${t.url})`).join('\n');
+
   return `Bạn là trợ lý AI thông minh và toàn diện dành cho giáo viên Việt Nam.
 
 ## VAI TRÒ
 Bạn là một chuyên gia giáo dục, có thể:
 - Hỗ trợ soạn giáo án, bài giảng, đề kiểm tra
 - Tư vấn phương pháp giảng dạy hiện đại
-- Gợi ý công cụ AI, phần mềm, website hữu ích từ BẤT KỲ nguồn nào (Google, Microsoft, Canva, Quizlet, Kahoot, ChatGPT, v.v.)
+- Gợi ý công cụ AI, phần mềm, website hữu ích
 - Phân tích, tóm tắt, giải thích tài liệu giáo dục
 - Trả lời câu hỏi chuyên môn liên quan đến việc dạy và học
 
+## DANH SÁCH CÔNG CỤ AI ĐỀ XUẤT (ƯU TIÊN GIỚI THIỆU)
+Dưới đây là danh sách các công cụ AI hữu ích mà bạn nên ưu tiên giới thiệu khi phù hợp với ngữ cảnh:
+${toolsList}
+
 ## NGUYÊN TẮC
-1. **Đa dạng nguồn**: KHÔNG giới hạn gợi ý ở một hệ thống/website cụ thể nào. Hãy gợi ý công cụ/tài nguyên TỐT NHẤT từ mọi nguồn (miễn phí, có phí đều được - ưu tiên miễn phí).
+1. **Đa dạng nguồn**: Ngoài danh sách trên, bạn vẫn có thể gợi ý công cụ khác từ Google, Microsoft, Canva, v.v. nếu phù hợp hơn.
 2. **Thực tế**: Đề xuất giải pháp thực tế, dễ áp dụng cho giáo viên Việt Nam.
 3. **Cập nhật**: Ưu tiên kiến thức mới nhất về giáo dục, chương trình 2018, công nghệ giáo dục.
 4. **Linh hoạt**: Nếu giáo viên đã upload tài liệu, hãy tham khảo và sử dụng nội dung đó một cách thông minh khi câu hỏi liên quan.
-${hasDocuments ? '5. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}
+5. **Trích dẫn**: Khi giới thiệu công cụ trong danh sách đề xuất, hãy kèm theo link để giáo viên truy cập.
+${hasDocuments ? '6. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}
 
 ## PROFILE GIÁO VIÊN
 - Tên: ${profile.name}
@@ -44,7 +53,7 @@ ${profile.school_name ? `- Trường: ${profile.school_name}` : ''}
 
 ## ĐỊNH DẠNG TRẢ LỜI
 - Sử dụng Markdown đẹp mắt (heading, bullet, bold, code block)
-- Khi gợi ý công cụ/website, luôn kèm **link trực tiếp** nếu có
+- Khi gợi ý công cụ/website, luôn kèm **link trực tiếp**
 - Với mỗi gợi ý, nêu rõ: ưu điểm, cách sử dụng, độ phù hợp
 - Trả lời bằng tiếng Việt thân thiện, chuyên nghiệp, dễ hiểu`;
 };
@@ -84,6 +93,7 @@ function App() {
         const lastId = savedSessions[0].id;
         setCurrentChatId(lastId);
         setMessages(getMessages(lastId));
+        setSelectedDocIds(savedSessions[0].selectedDocIds || []);
       } else {
         // First time — create initial chat
         const initId = Date.now().toString();
@@ -109,6 +119,28 @@ function App() {
       saveMessages(currentChatId, messages);
     }
   }, [messages, currentChatId]);
+
+  // Save selected docs to current session whenever they change
+  useEffect(() => {
+    if (!currentChatId || chatHistory.length === 0) return;
+
+    setChatHistory(prev => {
+      const session = prev.find(s => s.id === currentChatId);
+      if (!session) return prev;
+
+      const currentDocs = session.selectedDocIds || [];
+      const isSameLength = currentDocs.length === selectedDocIds.length;
+      const isSameContent = isSameLength && currentDocs.every(id => selectedDocIds.includes(id));
+
+      if (isSameContent) return prev;
+
+      const updated = prev.map(s =>
+        s.id === currentChatId ? { ...s, selectedDocIds } : s
+      );
+      saveSessions(updated);
+      return updated;
+    });
+  }, [selectedDocIds, currentChatId]);
 
   const handleSetupComplete = (apiKey: string, sbUrl: string, sbKey: string, newProfile: TeacherProfile) => {
     setGeminiApiKey(apiKey);
@@ -206,7 +238,7 @@ function App() {
       saveMessages(currentChatId, messages);
     }
     const newId = Date.now().toString();
-    const newSession: ChatSession = { id: newId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString() };
+    const newSession: ChatSession = { id: newId, title: 'Cuộc trò chuyện mới', created_at: new Date().toISOString(), selectedDocIds: [] };
     setChatHistory(prev => {
       const updated = [newSession, ...prev];
       saveSessions(updated);
@@ -214,6 +246,7 @@ function App() {
     });
     setCurrentChatId(newId);
     setMessages([]);
+    setSelectedDocIds([]);
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
@@ -222,10 +255,14 @@ function App() {
     if (currentChatId && messages.length > 0) {
       saveMessages(currentChatId, messages);
     }
+    const session = chatHistory.find(s => s.id === id);
+    if (session) {
+      setSelectedDocIds(session.selectedDocIds || []);
+    }
     setCurrentChatId(id);
     setMessages(getMessages(id));
     setSidebarOpen(false);
-  }, [currentChatId, messages]);
+  }, [currentChatId, messages, chatHistory]);
 
   const handleDeleteChat = useCallback((id: string) => {
     deleteSession(id);

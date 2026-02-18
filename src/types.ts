@@ -18,6 +18,7 @@ export interface ChatSession {
     id: string;
     title: string;
     created_at: string;
+    selectedDocIds?: string[];
 }
 
 export interface AITool {
