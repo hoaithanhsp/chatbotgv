@@ -1,23 +1,36 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star } from 'lucide-react';
+import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star, RefreshCw } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { isBookmarked } from '../services/chatStorage';
 
 interface MessageBubbleProps {
     message: ChatMessage;
     onBookmark?: (msg: ChatMessage) => void;
+    onRegenerate?: (messageId: string) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmark }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmark, onRegenerate }) => {
     const isUser = message.role === 'user';
-    const [copied, setCopied] = React.useState(false);
-    const [starred, setStarred] = React.useState(() => isBookmarked(message.id));
+    const [copied, setCopied] = useState(false);
+    const [starred, setStarred] = useState(() => isBookmarked(message.id));
+    const [activeVersion, setActiveVersion] = useState(-1); // -1 = current
+
+    const allVersions = useMemo(() => {
+        const vs = (message.versions || []).map((v, i) => ({ text: v.text, label: `v${i + 1}`, timestamp: v.timestamp }));
+        vs.push({ text: message.text, label: `v${vs.length + 1}`, timestamp: message.timestamp });
+        return vs;
+    }, [message.text, message.versions]);
+
+    const displayText = activeVersion >= 0 && activeVersion < allVersions.length
+        ? allVersions[activeVersion].text
+        : message.text;
+    const hasVersions = allVersions.length > 1;
 
     const handleCopy = () => {
         // Copy raw text (keeps LaTeX formulas as-is)
@@ -52,6 +65,28 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                     </span>
                 </div>
 
+                {/* Version navigation */}
+                {hasVersions && !isUser && (
+                    <div className="flex items-center gap-1 mb-2">
+                        <span className="text-[10px] font-medium text-gray-400 mr-1">Phiên bản:</span>
+                        {allVersions.map((v, i) => {
+                            const isCurrent = (activeVersion === -1 && i === allVersions.length - 1) || activeVersion === i;
+                            return (
+                                <button
+                                    key={i}
+                                    onClick={() => setActiveVersion(i === allVersions.length - 1 ? -1 : i)}
+                                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all ${isCurrent
+                                            ? 'bg-teal-600 text-white shadow-sm'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    {v.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <div className={`prose prose-slate prose-sm max-w-none text-slate-700 leading-relaxed ${isUser ? 'whitespace-pre-wrap font-medium text-slate-800' : ''
                     }`}>
                     {isUser ? (
@@ -69,7 +104,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                 li: ({ node, ...props }) => <li className="mb-1 pl-1" {...props} />,
                                 p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
                                 strong: ({ node, ...props }) => <strong className="font-bold text-slate-900" {...props} />,
-                                // Table styling
                                 table: ({ node, ...props }) => (
                                     <div className="overflow-x-auto my-5 rounded-xl border border-slate-200 shadow-sm">
                                         <table className="min-w-full divide-y divide-slate-200 text-sm" {...props} />
@@ -114,7 +148,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                 hr: ({ node, ...props }) => <hr className="my-6 border-slate-200" {...props} />,
                             }}
                         >
-                            {message.text}
+                            {displayText}
                         </ReactMarkdown>
                     )}
                 </div>
@@ -140,6 +174,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                             <Star size={14} fill={starred ? 'currentColor' : 'none'} />
                             {starred ? 'Đã ghim' : 'Ghim'}
                         </button>
+                        {onRegenerate && (
+                            <button
+                                onClick={() => onRegenerate(message.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-white hover:text-cyan-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                                title="Tạo lại câu trả lời"
+                            >
+                                <RefreshCw size={14} />
+                                Tạo lại
+                            </button>
+                        )}
                         <div className="flex-1" />
                         <div className="flex gap-1">
                             <button className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors">

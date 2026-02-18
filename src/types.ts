@@ -12,6 +12,7 @@ export interface ChatMessage {
     role: 'user' | 'model'; // 'model' is what Gemini uses, we can map to UI 'assistant'
     text: string;
     timestamp: string; // ISO string
+    versions?: { text: string; timestamp: string }[];
 }
 
 export interface ChatSession {
@@ -19,6 +20,8 @@ export interface ChatSession {
     title: string;
     created_at: string;
     selectedDocIds?: string[];
+    folder?: string;
+    tags?: string[];
 }
 
 export interface AITool {

@@ -15,9 +15,10 @@ interface ChatAreaProps {
     onOpenTemplatesWithCategory?: (category: string) => void;
     pendingInput?: string;
     onPendingInputConsumed?: () => void;
+    onRegenerate?: (messageId: string) => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates, onOpenTemplatesWithCategory, pendingInput, onPendingInputConsumed }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates, onOpenTemplatesWithCategory, pendingInput, onPendingInputConsumed, onRegenerate }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,7 +272,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                 {messages.length > 0 && (
                     <div className="max-w-4xl mx-auto py-6 px-4">
                         {messages.map((msg) => (
-                            <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} />
+                            <MessageBubble key={msg.id} message={msg} onBookmark={onBookmark} onRegenerate={onRegenerate} />
                         ))}
 
                         {isTyping && (

@@ -6,6 +6,7 @@ import { SetupModal } from './components/SetupModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DocumentManager } from './components/DocumentManager';
 import { PromptTemplatePanel } from './components/PromptTemplatePanel';
+import { DashboardModal } from './components/DashboardModal';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { buildDocumentContext } from './services/documents';
@@ -13,6 +14,7 @@ import {
   getSessions, saveSessions, deleteSession, renameSession,
   getMessages, saveMessages, generateTitle,
   getBookmarks, saveBookmark, removeBookmark,
+  autoDetectTags, updateSessionFolder,
 } from './services/chatStorage';
 import { downloadMarkdown, downloadWord } from './services/exportChat';
 import type { TeacherProfile, ChatSession, ChatMessage } from './types';
@@ -79,6 +81,8 @@ function App() {
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [pendingInput, setPendingInput] = useState('');
   const [templateCategory, setTemplateCategory] = useState('');
+  const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Load saved sessions on mount
   useEffect(() => {
@@ -191,8 +195,9 @@ function App() {
     const isFirstUserMsg = messages.filter(m => m.role === 'user').length === 0;
     if (isFirstUserMsg) {
       const newTitle = generateTitle(text);
+      const tags = autoDetectTags(text);
       setChatHistory(prev => {
-        const updated = prev.map(s => s.id === currentChatId ? { ...s, title: newTitle } : s);
+        const updated = prev.map(s => s.id === currentChatId ? { ...s, title: newTitle, tags } : s);
         saveSessions(updated);
         return updated;
       });
@@ -303,6 +308,61 @@ function App() {
     removeBookmark(messageId);
   }, []);
 
+  const handleMoveToFolder = useCallback((chatId: string, folder: string) => {
+    updateSessionFolder(chatId, folder || undefined);
+    setChatHistory(prev => {
+      const updated = prev.map(s => s.id === chatId ? { ...s, folder: folder || undefined } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleRegenerate = useCallback(async (messageId: string) => {
+    // Find the AI message and the user message before it
+    const msgIndex = messages.findIndex(m => m.id === messageId);
+    if (msgIndex < 0 || messages[msgIndex].role !== 'model') return;
+
+    // Find the last user message before this AI response
+    let userText = '';
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') { userText = messages[i].text; break; }
+    }
+    if (!userText) return;
+
+    setIsTyping(true);
+    try {
+      const systemPrompt = constructSystemPrompt(profile || { name: 'Giáo viên', subject: '', school_level: '' }, selectedDocIds.length > 0);
+      const docContext = selectedDocIds.length > 0 ? buildDocumentContext(selectedDocIds) : '';
+      const fullPrompt = docContext ? `[Tài liệu tham khảo]\n${docContext}\n\n${userText}` : userText;
+
+      // Build history in Gemini format (same as handleSendMessage)
+      const historyForGemini = [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: 'Tôi đã hiểu thông tin và tài liệu tham khảo. Tôi sẵn sàng hỗ trợ bạn.' }] },
+        ...messages.slice(0, msgIndex).map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }))
+      ];
+
+      const aiResponse = await generateResponse(historyForGemini, fullPrompt);
+
+      // Save old version, update message
+      setMessages(prev => prev.map(m => {
+        if (m.id === messageId) {
+          const versions = m.versions || [];
+          versions.push({ text: m.text, timestamp: m.timestamp });
+          return { ...m, text: aiResponse, timestamp: new Date().toISOString(), versions };
+        }
+        return m;
+      }));
+    } catch (error: any) {
+      console.error('Regenerate failed:', error);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [messages, profile, selectedDocIds]);
+
   // Export handlers
   const handleExportMarkdown = () => {
     const session = chatHistory.find(s => s.id === currentChatId);
@@ -316,10 +376,12 @@ function App() {
     setShowExportMenu(false);
   };
 
-  // Filtered chat history for search
-  const filteredHistory = searchQuery.trim()
-    ? chatHistory.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    : chatHistory;
+  // Filtered chat history for search + folder
+  const filteredHistory = chatHistory.filter(s => {
+    const matchSearch = !searchQuery.trim() || s.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchFolder = !folderFilter || s.folder === folderFilter;
+    return matchSearch && matchFolder;
+  });
 
   if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div></div>;
 
@@ -452,6 +514,10 @@ function App() {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onShowBookmarks={() => setShowBookmarks(true)}
+            onShowDashboard={() => setShowDashboard(true)}
+            folderFilter={folderFilter}
+            onFolderFilterChange={setFolderFilter}
+            onMoveToFolder={handleMoveToFolder}
           />
         </div>
 
@@ -482,6 +548,13 @@ function App() {
                 setShowBookmarks(true);
                 setSidebarOpen(false);
               }}
+              onShowDashboard={() => {
+                setShowDashboard(true);
+                setSidebarOpen(false);
+              }}
+              folderFilter={folderFilter}
+              onFolderFilterChange={setFolderFilter}
+              onMoveToFolder={handleMoveToFolder}
             />
           </div>
         )}
@@ -498,6 +571,7 @@ function App() {
               onOpenTemplatesWithCategory={(cat) => { setTemplateCategory(cat); setShowTemplatePanel(true); }}
               pendingInput={pendingInput}
               onPendingInputConsumed={() => setPendingInput('')}
+              onRegenerate={handleRegenerate}
             />
           </div>
         </main>
@@ -537,6 +611,11 @@ function App() {
           setShowTemplatePanel(false);
           setPendingInput(prompt);
         }}
+      />
+
+      <DashboardModal
+        isOpen={showDashboard}
+        onClose={() => setShowDashboard(false)}
       />
 
       {/* Bookmarks Modal */}
