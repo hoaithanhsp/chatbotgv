@@ -5,6 +5,7 @@ import { ChatArea } from './components/ChatArea';
 import { SetupModal } from './components/SetupModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DocumentManager } from './components/DocumentManager';
+import { PromptTemplatePanel } from './components/PromptTemplatePanel';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { buildDocumentContext } from './services/documents';
@@ -75,6 +76,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showTemplatePanel, setShowTemplatePanel] = useState(false);
 
   // Load saved sessions on mount
   useEffect(() => {
@@ -490,6 +492,7 @@ function App() {
               onSendMessage={handleSendMessage}
               userName={profile?.name || ''}
               onBookmark={handleBookmarkMessage}
+              onOpenTemplates={() => setShowTemplatePanel(true)}
             />
           </div>
         </main>
@@ -519,6 +522,15 @@ function App() {
         onClose={() => setShowDocManager(false)}
         selectedDocIds={selectedDocIds}
         onSelectionChange={setSelectedDocIds}
+      />
+
+      <PromptTemplatePanel
+        isOpen={showTemplatePanel}
+        onClose={() => setShowTemplatePanel(false)}
+        onSelectTemplate={(prompt) => {
+          setShowTemplatePanel(false);
+          handleSendMessage(prompt);
+        }}
       />
 
       {/* Bookmarks Modal */}

@@ -1,8 +1,9 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { Send, Loader2, Sparkles } from 'lucide-react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { Send, Loader2, Sparkles, Zap, Mic, MicOff } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { MessageBubble } from './MessageBubble';
+import { SLASH_COMMANDS, PROMPT_TEMPLATES } from '../data/promptTemplates';
 
 interface ChatAreaProps {
     messages: ChatMessage[];
@@ -10,12 +11,64 @@ interface ChatAreaProps {
     onSendMessage: (text: string) => void;
     userName: string;
     onBookmark?: (msg: ChatMessage) => void;
+    onOpenTemplates?: () => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
+    const [slashFilter, setSlashFilter] = useState('');
+    const [selectedSlashIdx, setSelectedSlashIdx] = useState(0);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+
+    // Web Speech API setup
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'vi-VN';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event: any) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            setInput(prev => {
+                // If this is a final result, append to existing
+                if (event.results[event.results.length - 1].isFinal) {
+                    return prev + transcript + ' ';
+                }
+                return prev;
+            });
+        };
+
+        recognition.onerror = () => {
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+    }, []);
+
+    const toggleVoice = () => {
+        if (!recognitionRef.current) return;
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,18 +78,107 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
         scrollToBottom();
     }, [messages, isTyping]);
 
+    // Slash command filtering
+    const filteredCommands = useMemo(() => {
+        if (!slashFilter) return SLASH_COMMANDS;
+        const q = slashFilter.toLowerCase();
+        return SLASH_COMMANDS.filter(c =>
+            c.command.toLowerCase().includes(q) ||
+            c.title.toLowerCase().includes(q)
+        );
+    }, [slashFilter]);
+
+    // Reset selected index when filter changes
+    useEffect(() => {
+        setSelectedSlashIdx(0);
+    }, [slashFilter]);
+
+    const handleInputChange = (value: string) => {
+        setInput(value);
+
+        // Detect slash command typing
+        if (value.startsWith('/')) {
+            setShowSlashMenu(true);
+            setSlashFilter(value.slice(1)); // remove the leading /
+        } else {
+            setShowSlashMenu(false);
+            setSlashFilter('');
+        }
+    };
+
+    const handleSelectSlashCommand = (templatePrompt: string) => {
+        setInput(templatePrompt);
+        setShowSlashMenu(false);
+        setSlashFilter('');
+        // Focus textarea after selecting
+        setTimeout(() => {
+            textareaRef.current?.focus();
+            adjustHeight();
+        }, 50);
+    };
+
+
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!input.trim() || isTyping) return;
 
+        // Check if input is a slash command exactly
+        const exactMatch = SLASH_COMMANDS.find(c => c.command === input.trim());
+        if (exactMatch) {
+            // Load template prompt instead
+            import('../data/promptTemplates').then(({ PROMPT_TEMPLATES }) => {
+                const template = PROMPT_TEMPLATES.find(t => t.id === exactMatch.templateId);
+                if (template) {
+                    setInput(template.prompt);
+                    setShowSlashMenu(false);
+                    textareaRef.current?.focus();
+                    setTimeout(adjustHeight, 50);
+                }
+            });
+            return;
+        }
+
         onSendMessage(input);
         setInput('');
+        setShowSlashMenu(false);
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        // Handle slash menu navigation
+        if (showSlashMenu && filteredCommands.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSelectedSlashIdx(prev => (prev + 1) % filteredCommands.length);
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSelectedSlashIdx(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+                return;
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                const selected = filteredCommands[selectedSlashIdx];
+                if (selected) {
+                    import('../data/promptTemplates').then(({ PROMPT_TEMPLATES }) => {
+                        const template = PROMPT_TEMPLATES.find(t => t.id === selected.templateId);
+                        if (template) {
+                            handleSelectSlashCommand(template.prompt);
+                        }
+                    });
+                }
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setShowSlashMenu(false);
+                return;
+            }
+        }
+
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSubmit();
@@ -49,6 +191,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
             textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 192) + 'px';
         }
     };
+
 
     return (
         <div className="relative w-full h-full bg-slate-50/50">
@@ -92,6 +235,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                                 </button>
                             ))}
                         </div>
+
+                        {/* Templates CTA */}
+                        {onOpenTemplates && (
+                            <button
+                                onClick={onOpenTemplates}
+                                className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 text-indigo-700 rounded-full text-sm font-medium hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                            >
+                                <Zap size={16} />
+                                Xem tất cả Templates ({PROMPT_TEMPLATES.length}+)
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -122,21 +276,80 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
             {/* Input Area */}
             <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-indigo-50 p-4 z-10 transition-all duration-300">
                 <div className="max-w-4xl mx-auto relative group">
+                    {/* Slash Command Menu */}
+                    {showSlashMenu && filteredCommands.length > 0 && (
+                        <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150 z-20">
+                            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+                                <span className="text-xs font-medium text-gray-500">⚡ Lệnh nhanh</span>
+                            </div>
+                            <div className="max-h-64 overflow-y-auto">
+                                {filteredCommands.map((cmd, idx) => (
+                                    <button
+                                        key={cmd.command}
+                                        onClick={() => {
+                                            import('../data/promptTemplates').then(({ PROMPT_TEMPLATES }) => {
+                                                const template = PROMPT_TEMPLATES.find(t => t.id === cmd.templateId);
+                                                if (template) {
+                                                    handleSelectSlashCommand(template.prompt);
+                                                }
+                                            });
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${idx === selectedSlashIdx
+                                            ? 'bg-indigo-50 border-l-2 border-indigo-500'
+                                            : 'hover:bg-gray-50 border-l-2 border-transparent'
+                                            }`}
+                                    >
+                                        <span className="text-lg">{cmd.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-sm font-semibold text-indigo-600">{cmd.command}</span>
+                                                <span className="text-sm font-medium text-gray-800">{cmd.title}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 truncate">{cmd.description}</p>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Enter ↵</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl opacity-20 group-focus-within:opacity-40 transition duration-300 blur"></div>
                     <div className="relative flex items-end gap-2 p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
+                        {/* Template Button */}
+                        {onOpenTemplates && (
+                            <button
+                                onClick={onOpenTemplates}
+                                title="Kho Prompt Templates"
+                                className="p-3 rounded-xl text-indigo-500 hover:bg-indigo-50 transition-colors mb-0.5 shrink-0"
+                            >
+                                <Zap size={20} />
+                            </button>
+                        )}
                         <textarea
                             ref={textareaRef}
                             rows={1}
                             value={input}
                             onChange={(e) => {
-                                setInput(e.target.value);
+                                handleInputChange(e.target.value);
                                 adjustHeight();
                             }}
                             onKeyDown={handleKeyDown}
-                            placeholder="Nhập câu hỏi hoặc yêu cầu của thầy cô..."
+                            placeholder="Nhập câu hỏi hoặc gõ / để dùng lệnh nhanh..."
                             className="w-full max-h-48 bg-transparent border-0 text-slate-800 placeholder:text-slate-400 focus:ring-0 resize-none py-3 px-3 custom-scrollbar leading-relaxed"
                             style={{ minHeight: 44 }}
                         />
+                        {/* Voice Input Button */}
+                        <button
+                            onClick={toggleVoice}
+                            title={isListening ? 'Dừng ghi âm' : 'Nói để nhập văn bản'}
+                            className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${isListening
+                                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
+                                    : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50'
+                                }`}
+                        >
+                            {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                        </button>
                         <button
                             onClick={() => handleSubmit()}
                             disabled={!input.trim() || isTyping}
@@ -149,7 +362,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         </button>
                     </div>
                     <p className="text-center text-[10px] text-slate-400 mt-2 font-medium tracking-wide uppercase">
-                        AI có thể mắc lỗi • Hãy kiểm tra thông tin quan trọng
+                        AI có thể mắc lỗi • Gõ <kbd className="bg-gray-100 px-1 rounded font-mono">/</kbd> để xem lệnh nhanh
                     </p>
                 </div>
             </div>
