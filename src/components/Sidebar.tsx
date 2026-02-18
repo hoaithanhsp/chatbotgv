@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen } from 'lucide-react';
+import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen, Pin } from 'lucide-react';
 import type { TeacherProfile, ChatSession } from '../types';
 import { getChatFolders, addChatFolder } from '../services/chatStorage';
 
@@ -31,6 +31,7 @@ interface SidebarProps {
     folderFilter: string | null;
     onFolderFilterChange: (folder: string | null) => void;
     onMoveToFolder?: (chatId: string, folder: string) => void;
+    onTogglePin?: (chatId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -49,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     folderFilter,
     onFolderFilterChange,
     onMoveToFolder,
+    onTogglePin,
 }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -233,8 +235,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </div>
                             ) : (
                                 <>
-                                    <span className="flex-1 truncate text-sm font-medium leading-relaxed">{chat.title}</span>
+                                    <span className="flex-1 truncate text-sm font-medium leading-relaxed">
+                                        {chat.pinned && <span className="text-amber-500 mr-1">📌</span>}
+                                        {chat.title}
+                                    </span>
                                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity bg-gradient-to-l from-white/90 via-white/50 to-transparent pl-2 backdrop-blur-[1px]">
+                                        {/* Pin/Unpin */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onTogglePin?.(chat.id); }}
+                                            className={`p-1.5 rounded-lg transition-all ${chat.pinned ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'}`}
+                                            title={chat.pinned ? 'Bỏ ghim' : 'Ghim cuộc chat'}
+                                        >
+                                            <Pin size={13} />
+                                        </button>
                                         {/* Move to folder */}
                                         <div className="relative">
                                             <button

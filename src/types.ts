@@ -22,6 +22,7 @@ export interface ChatSession {
     selectedDocIds?: string[];
     folder?: string;
     tags?: string[];
+    pinned?: boolean;
 }
 
 export interface AITool {

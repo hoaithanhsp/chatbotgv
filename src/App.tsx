@@ -7,24 +7,39 @@ import { SettingsModal } from './components/SettingsModal';
 import { DocumentManager } from './components/DocumentManager';
 import { PromptTemplatePanel } from './components/PromptTemplatePanel';
 import { DashboardModal } from './components/DashboardModal';
+import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { buildDocumentContext } from './services/documents';
+import { initDarkMode, toggleDarkMode, isDarkMode } from './services/darkMode';
 import {
   getSessions, saveSessions, deleteSession, renameSession,
   getMessages, saveMessages, generateTitle,
   getBookmarks, saveBookmark, removeBookmark,
   autoDetectTags, updateSessionFolder,
 } from './services/chatStorage';
-import { downloadMarkdown, downloadWord } from './services/exportChat';
+import { downloadMarkdown, downloadWord, downloadPdf } from './services/exportChat';
 import type { TeacherProfile, ChatSession, ChatMessage } from './types';
-import { Menu, Settings, Key, Cpu, FileText, Download, Plus } from 'lucide-react';
+import { Menu, Settings, Key, Cpu, FileText, Download, Plus, Moon, Sun, Globe } from 'lucide-react';
 
 import { RECOMMENDED_AI_TOOLS } from './data/aiTools';
 
+// AI language options
+const AI_LANGUAGES: { code: string; label: string; flag: string }[] = [
+  { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'ja', label: '日本語', flag: '🇯🇵' },
+  { code: 'ko', label: '한국어', flag: '🇰🇷' },
+  { code: 'zh', label: '中文', flag: '🇨🇳' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+];
+
 // System Prompt Construction
-const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean) => {
+const constructSystemPrompt = (profile: TeacherProfile, hasDocuments: boolean, aiLang: string = 'vi') => {
   const toolsList = RECOMMENDED_AI_TOOLS.map(t => `- **${t.name}**: ${t.description} (Link: ${t.url})`).join('\n');
+  const langInstruction = aiLang !== 'vi'
+    ? `\n\n## NGÔN NGỮ TRẢ LỜI\nHãy trả lời TOÀN BỘ bằng ${AI_LANGUAGES.find(l => l.code === aiLang)?.label || aiLang}. Dù user hỏi bằng tiếng Việt, bạn vẫn phải trả lời bằng ${AI_LANGUAGES.find(l => l.code === aiLang)?.label || aiLang}.`
+    : '';
 
   return `Bạn là trợ lý AI thông minh và toàn diện dành cho giáo viên Việt Nam.
 
@@ -46,7 +61,7 @@ ${toolsList}
 3. **Cập nhật**: Ưu tiên kiến thức mới nhất về giáo dục, chương trình 2018, công nghệ giáo dục.
 4. **Linh hoạt**: Nếu giáo viên đã upload tài liệu, hãy tham khảo và sử dụng nội dung đó một cách thông minh khi câu hỏi liên quan.
 5. **Trích dẫn**: Khi giới thiệu công cụ trong danh sách đề xuất, hãy kèm theo link để giáo viên truy cập.
-${hasDocuments ? '6. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}
+${hasDocuments ? '6. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}${langInstruction}
 
 ## PROFILE GIÁO VIÊN
 - Tên: ${profile.name}
@@ -83,6 +98,43 @@ function App() {
   const [templateCategory, setTemplateCategory] = useState('');
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [darkMode, setDarkModeState] = useState(isDarkMode());
+  const [aiLanguage, setAiLanguage] = useState(() => localStorage.getItem('ai_language') || 'vi');
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Initialize dark mode on mount
+  useEffect(() => {
+    initDarkMode();
+    // Show onboarding for first-time users
+    if (shouldShowOnboarding()) {
+      setTimeout(() => setShowOnboarding(true), 1000);
+    }
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N = new chat
+      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); handleNewChat(); }
+      // Ctrl+K = focus search
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('aside input[type="text"]') as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+      }
+      // Ctrl+/ = open templates
+      if (e.ctrlKey && e.key === '/') { e.preventDefault(); setShowTemplatePanel(true); }
+      // Ctrl+D = toggle dark mode
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        const newState = toggleDarkMode();
+        setDarkModeState(newState);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Load saved sessions on mount
   useEffect(() => {
@@ -205,7 +257,7 @@ function App() {
 
     try {
       const docContext = await buildDocumentContext(selectedDocIds);
-      const systemPrompt = constructSystemPrompt(profile, selectedDocIds.length > 0) + docContext;
+      const systemPrompt = constructSystemPrompt(profile, selectedDocIds.length > 0, aiLanguage) + docContext;
 
       const historyForGemini = [
         { role: 'user', parts: [{ text: systemPrompt }] },
@@ -331,7 +383,7 @@ function App() {
 
     setIsTyping(true);
     try {
-      const systemPrompt = constructSystemPrompt(profile || { name: 'Giáo viên', subject: '', school_level: '' }, selectedDocIds.length > 0);
+      const systemPrompt = constructSystemPrompt(profile || { name: 'Giáo viên', subject: '', school_level: '' }, selectedDocIds.length > 0, aiLanguage);
       const docContext = selectedDocIds.length > 0 ? buildDocumentContext(selectedDocIds) : '';
       const fullPrompt = docContext ? `[Tài liệu tham khảo]\n${docContext}\n\n${userText}` : userText;
 
@@ -376,17 +428,52 @@ function App() {
     setShowExportMenu(false);
   };
 
-  // Filtered chat history for search + folder
-  const filteredHistory = chatHistory.filter(s => {
-    const matchSearch = !searchQuery.trim() || s.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchFolder = !folderFilter || s.folder === folderFilter;
-    return matchSearch && matchFolder;
-  });
+  // Chat pin handler
+  const handleTogglePin = useCallback((chatId: string) => {
+    setChatHistory(prev => {
+      const updated = prev.map(s => s.id === chatId ? { ...s, pinned: !s.pinned } : s);
+      saveSessions(updated);
+      return updated;
+    });
+  }, []);
+
+  // Export PDF handler
+  const handleExportPdf = () => {
+    const session = chatHistory.find(s => s.id === currentChatId);
+    downloadPdf(session?.title || 'chat', messages);
+    setShowExportMenu(false);
+  };
+
+  // Dark mode toggle handler
+  const handleToggleDark = () => {
+    const newState = toggleDarkMode();
+    setDarkModeState(newState);
+  };
+
+  // AI language change handler
+  const handleAiLanguageChange = (code: string) => {
+    setAiLanguage(code);
+    localStorage.setItem('ai_language', code);
+    setShowLangMenu(false);
+  };
+
+  // Filtered chat history for search + folder, pinned first
+  const filteredHistory = chatHistory
+    .filter(s => {
+      const matchSearch = !searchQuery.trim() || s.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchFolder = !folderFilter || s.folder === folderFilter;
+      return matchSearch && matchFolder;
+    })
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    });
 
   if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div></div>;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden app-wrapper">
 
       {/* === PERSISTENT HEADER === */}
       <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 shrink-0 z-30">
@@ -459,11 +546,52 @@ function App() {
                       <div className="text-xs text-gray-500">Có định dạng đẹp</div>
                     </div>
                   </button>
+                  <button
+                    onClick={handleExportPdf}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  >
+                    <span className="text-lg">🖨️</span>
+                    <div>
+                      <div className="font-medium text-gray-900">PDF (.pdf)</div>
+                      <div className="text-xs text-gray-500">In / Lưu PDF</div>
+                    </div>
+                  </button>
                 </div>
               </>
             )}
           </div>
         )}
+
+        {/* AI Language Selector */}
+        <div className="relative hidden sm:block">
+          <button
+            onClick={() => setShowLangMenu(!showLangMenu)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors text-xs font-medium"
+            title="Ngôn ngữ AI trả lời"
+          >
+            <Globe size={14} />
+            {AI_LANGUAGES.find(l => l.code === aiLanguage)?.flag}
+          </button>
+          {showLangMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-44 py-1">
+                {AI_LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleAiLanguageChange(lang.code)}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${aiLanguage === lang.code ? 'bg-purple-50 text-purple-700 font-semibold' : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                  >
+                    <span>{lang.flag}</span>
+                    {lang.label}
+                    {aiLanguage === lang.code && <span className="ml-auto text-purple-500">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Documents Button */}
         <button
@@ -477,6 +605,15 @@ function App() {
               {selectedDocIds.length}
             </span>
           )}
+        </button>
+
+        {/* Dark Mode Toggle */}
+        <button
+          onClick={handleToggleDark}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+          title={darkMode ? 'Chế độ sáng (Ctrl+D)' : 'Chế độ tối (Ctrl+D)'}
+        >
+          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         {/* Settings / API Key Button */}
@@ -518,6 +655,7 @@ function App() {
             folderFilter={folderFilter}
             onFolderFilterChange={setFolderFilter}
             onMoveToFolder={handleMoveToFolder}
+            onTogglePin={handleTogglePin}
           />
         </div>
 
@@ -555,6 +693,7 @@ function App() {
               folderFilter={folderFilter}
               onFolderFilterChange={setFolderFilter}
               onMoveToFolder={handleMoveToFolder}
+              onTogglePin={handleTogglePin}
             />
           </div>
         )}
@@ -657,6 +796,11 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Onboarding Tour */}
+      {showOnboarding && (
+        <OnboardingTour onComplete={() => setShowOnboarding(false)} />
       )}
     </div>
   );

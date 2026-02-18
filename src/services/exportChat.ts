@@ -179,3 +179,58 @@ function parseInlineBold(text: string): { text: string; bold: boolean }[] {
 
     return parts.length > 0 ? parts : [{ text, bold: false }];
 }
+
+// ========== EXPORT TO PDF (browser print) ==========
+
+export const downloadPdf = (title: string, messages: ChatMessage[]) => {
+    const date = new Date().toLocaleDateString('vi-VN');
+
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${title}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.7; }
+  h1 { text-align: center; color: #0d9488; margin-bottom: 5px; font-size: 24px; }
+  .date { text-align: center; color: #94a3b8; font-style: italic; margin-bottom: 30px; font-size: 13px; }
+  .msg { margin-bottom: 20px; padding: 16px 20px; border-radius: 12px; page-break-inside: avoid; }
+  .user { background: #f0fdfa; border-left: 4px solid #14b8a6; }
+  .ai { background: #f8fafc; border-left: 4px solid #06b6d4; }
+  .speaker { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .user .speaker { color: #0d9488; }
+  .ai .speaker { color: #0891b2; }
+  .content { font-size: 14px; white-space: pre-wrap; }
+  .content strong { font-weight: 700; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 15px 0; }
+  @media print { body { padding: 20px; } }
+</style>
+</head><body>
+<h1>${title}</h1>
+<p class="date">Xuất ngày: ${date}</p>`;
+
+    for (const msg of messages) {
+        const time = new Date(msg.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        const isUser = msg.role === 'user';
+        const cls = isUser ? 'user' : 'ai';
+        const label = isUser ? `👤 Bạn (${time})` : `🤖 Trợ lý GV (${time})`;
+        // Simple markdown to HTML: bold, headers, lists
+        let content = msg.text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.*$)/gm, '<h4 style="margin:8px 0 4px;font-size:15px;color:#334155">$1</h4>')
+            .replace(/^## (.*$)/gm, '<h3 style="margin:10px 0 5px;font-size:16px;color:#1e293b">$1</h3>')
+            .replace(/^# (.*$)/gm, '<h2 style="margin:12px 0 6px;font-size:18px;color:#0f172a">$1</h2>')
+            .replace(/^- (.*$)/gm, '<div style="padding-left:16px">• $1</div>')
+            .replace(/^\d+\. (.*$)/gm, '<div style="padding-left:16px">$&</div>');
+
+        html += `<div class="msg ${cls}"><div class="speaker">${label}</div><div class="content">${content}</div></div>`;
+    }
+
+    html += `</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+        win.document.write(html);
+        win.document.close();
+        setTimeout(() => win.print(), 500);
+    }
+};
