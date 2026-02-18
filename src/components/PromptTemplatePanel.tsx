@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, Search, Zap, Plus, Edit3, Trash2, FolderPlus, ChevronLeft, Save } from 'lucide-react';
 import {
-    PROMPT_TEMPLATES,
     getAllCategories,
     getAllTemplates,
     addCustomTemplate,
     updateCustomTemplate,
     deleteCustomTemplate,
     addCustomCategory,
-    loadCustomTemplates,
 } from '../data/promptTemplates';
 import type { PromptTemplate, TemplateCategory } from '../data/promptTemplates';
 
@@ -170,7 +168,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                     </button>
                                     <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2 grid grid-cols-5 gap-1 z-10 hidden group-hover:grid w-48">
                                         {EMOJI_OPTIONS.map(e => (
-                                            <button key={e} onClick={() => setForm({ ...form, icon: e })} className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center hover:bg-indigo-50 transition-colors ${form.icon === e ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''}`}>
+                                            <button key={e} onClick={() => setForm({ ...form, icon: e })} className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center hover:bg-teal-50 transition-colors ${form.icon === e ? 'bg-teal-100 ring-2 ring-teal-400' : ''}`}>
                                                 {e}
                                             </button>
                                         ))}
@@ -184,7 +182,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                     value={form.title}
                                     onChange={e => setForm({ ...form, title: e.target.value })}
                                     placeholder="VD: Soạn giáo án..."
-                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                         </div>
@@ -197,7 +195,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                 value={form.description}
                                 onChange={e => setForm({ ...form, description: e.target.value })}
                                 placeholder="VD: Hỗ trợ soạn giáo án chi tiết..."
-                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             />
                         </div>
 
@@ -210,7 +208,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                         key={cat.id}
                                         onClick={() => setForm({ ...form, category: cat.id })}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${form.category === cat.id
-                                            ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                            ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                     >
                                         <span>{cat.icon}</span>
                                         <span>{cat.label}</span>
@@ -229,7 +227,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                 onChange={e => setForm({ ...form, prompt: e.target.value })}
                                 placeholder="Viết prompt ở đây... Dùng [tên biến] để tạo placeholder.\nVD: Hãy soạn giáo án môn [môn học] lớp [lớp]..."
                                 rows={8}
-                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none leading-relaxed"
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none leading-relaxed"
                             />
                             <p className="text-[11px] text-gray-400 mt-1">💡 Dùng [tên biến] để tạo placeholder, VD: [môn học], [lớp], [nội dung]</p>
                         </div>
@@ -243,7 +241,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                         <button
                             onClick={handleSaveForm}
                             disabled={!form.title.trim() || !form.prompt.trim()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl text-sm font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             <Save size={16} />
                             {editingId ? 'Lưu thay đổi' : 'Thêm vào kho'}
@@ -264,7 +262,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-gray-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl text-white">
+                        <div className="p-2 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl text-white">
                             <Zap size={20} />
                         </div>
                         <div>
@@ -275,7 +273,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleAdd}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all"
                         >
                             <Plus size={16} />
                             <span className="hidden sm:inline">Thêm</span>
@@ -295,7 +293,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                             placeholder="Tìm kiếm template..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
                         />
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar items-center">
@@ -304,7 +302,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat.id
-                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                    ? 'bg-teal-600 text-white shadow-sm'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
@@ -314,12 +312,12 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                         ))}
                         {/* Add Category Button */}
                         {showNewCatForm ? (
-                            <div className="flex items-center gap-1 bg-white border border-indigo-200 rounded-full px-2 py-1 shadow-sm" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-full px-2 py-1 shadow-sm" onClick={e => e.stopPropagation()}>
                                 <div className="relative group">
                                     <button className="w-7 h-7 rounded-full bg-gray-50 text-sm flex items-center justify-center hover:bg-gray-100">{newCatIcon}</button>
                                     <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-1.5 grid grid-cols-5 gap-1 z-10 hidden group-hover:grid w-40">
                                         {['📁', '⭐', '🎓', '🚀', '🧪', '📐', '🎨', '💼', '🔬', '📌'].map(e => (
-                                            <button key={e} onClick={() => setNewCatIcon(e)} className={`w-6 h-6 rounded text-sm flex items-center justify-center hover:bg-indigo-50 ${newCatIcon === e ? 'bg-indigo-100' : ''}`}>{e}</button>
+                                            <button key={e} onClick={() => setNewCatIcon(e)} className={`w-6 h-6 rounded text-sm flex items-center justify-center hover:bg-teal-50 ${newCatIcon === e ? 'bg-teal-100' : ''}`}>{e}</button>
                                         ))}
                                     </div>
                                 </div>
@@ -332,7 +330,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                     className="w-24 bg-transparent border-0 text-sm focus:ring-0 px-1"
                                     autoFocus
                                 />
-                                <button onClick={handleAddCategory} className="p-1 text-indigo-600 hover:bg-indigo-50 rounded-full">
+                                <button onClick={handleAddCategory} className="p-1 text-teal-600 hover:bg-teal-50 rounded-full">
                                     <Plus size={14} />
                                 </button>
                                 <button onClick={() => setShowNewCatForm(false)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full">
@@ -342,7 +340,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                         ) : (
                             <button
                                 onClick={() => setShowNewCatForm(true)}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-white border-2 border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-all"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-white border-2 border-dashed border-gray-300 text-gray-400 hover:border-teal-300 hover:text-teal-500 transition-all"
                             >
                                 <FolderPlus size={14} />
                                 <span>Thư mục</span>
@@ -357,7 +355,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                         <div className="text-center py-12 text-gray-400">
                             <p className="text-3xl mb-2">🔍</p>
                             <p>Không tìm thấy template phù hợp</p>
-                            <button onClick={handleAdd} className="mt-4 flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-medium mx-auto hover:bg-indigo-100 transition-colors">
+                            <button onClick={handleAdd} className="mt-4 flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-600 rounded-xl text-sm font-medium mx-auto hover:bg-teal-100 transition-colors">
                                 <Plus size={16} /> Thêm prompt mới
                             </button>
                         </div>
@@ -366,14 +364,14 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                             {filtered.map(template => (
                                 <div
                                     key={template.id}
-                                    className="relative flex flex-col items-start p-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all duration-200 group text-left hover:-translate-y-0.5 cursor-pointer"
+                                    className="relative flex flex-col items-start p-4 bg-white border border-gray-200 rounded-xl hover:border-teal-300 hover:shadow-md transition-all duration-200 group text-left hover:-translate-y-0.5 cursor-pointer"
                                     onClick={() => handleSelect(template)}
                                 >
                                     <div className="flex items-center gap-2 mb-2 w-full">
                                         <span className="text-xl">{template.icon}</span>
                                         <span className="font-semibold text-gray-800 text-sm flex-1 line-clamp-1">{template.title}</span>
                                         {template.slashCommand && (
-                                            <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                            <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
                                                 {template.slashCommand}
                                             </span>
                                         )}
@@ -401,7 +399,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                                     </div>
                                     <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{template.description}</p>
                                     {template.isCustom && (
-                                        <span className="mt-2 text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full font-medium">Tự tạo</span>
+                                        <span className="mt-2 text-[10px] bg-cyan-50 text-cyan-600 px-1.5 py-0.5 rounded-full font-medium">Tự tạo</span>
                                     )}
                                     {template.variables && template.variables.length > 0 && !template.isCustom && (
                                         <div className="flex flex-wrap gap-1 mt-2">
@@ -424,7 +422,7 @@ export const PromptTemplatePanel: React.FC<PromptTemplatePanelProps> = ({ isOpen
                 {/* Footer hint */}
                 <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 sm:rounded-b-2xl">
                     <p className="text-[11px] text-gray-400 text-center">
-                        💡 Gõ <kbd className="bg-gray-200 px-1.5 py-0.5 rounded text-gray-600 font-mono">/</kbd> trong chat để dùng Slash Commands • Nhấn <button onClick={handleAdd} className="text-indigo-500 hover:underline font-medium">+ Thêm</button> để tạo prompt của bạn
+                        💡 Gõ <kbd className="bg-gray-200 px-1.5 py-0.5 rounded text-gray-600 font-mono">/</kbd> trong chat để dùng Slash Commands • Nhấn <button onClick={handleAdd} className="text-teal-500 hover:underline font-medium">+ Thêm</button> để tạo prompt của bạn
                     </p>
                 </div>
             </div>

@@ -50,15 +50,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
 
     return (
-        <aside className="w-80 h-full flex flex-col bg-white/90 border-r border-indigo-50/50 backdrop-blur-sm shadow-xl z-20 font-sans">
+        <aside className="w-80 h-full flex flex-col bg-white/90 border-r border-teal-50/50 backdrop-blur-sm shadow-xl z-20 font-sans">
             {/* Profile Card */}
-            <div className="p-5 border-b border-indigo-50/50">
-                <div className="flex items-center gap-3 bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm transition-all hover:shadow-md group">
-                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">
+            <div className="p-5 border-b border-teal-50/50">
+                <div className="flex items-center gap-3 bg-gradient-to-br from-teal-50 to-white p-3 rounded-2xl border border-teal-100 shadow-sm transition-all hover:shadow-md group">
+                    <div className="w-12 h-12 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-teal-200">
                         {profile?.name ? profile.name.charAt(0).toUpperCase() : <User size={22} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-slate-800 truncate text-base group-hover:text-indigo-700 transition-colors">{profile?.name || 'Giáo viên'}</h3>
+                        <h3 className="font-bold text-slate-800 truncate text-base group-hover:text-teal-700 transition-colors">{profile?.name || 'Giáo viên'}</h3>
                         <p className="text-xs font-medium text-slate-500 truncate flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                             {profile?.subject ? `${profile.subject} - ${profile.school_level}` : 'Trực tuyến'}
@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                     <button
                         onClick={onOpenSettings}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                        className="p-2 text-slate-400 hover:text-teal-600 hover:bg-white rounded-lg transition-all shadow-sm opacity-0 group-hover:opacity-100"
                     >
                         <Settings size={18} />
                     </button>
@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-5 pt-5 pb-3">
                 <button
                     onClick={onNewChat}
-                    className="w-full relative overflow-hidden group flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-lg shadow-indigo-200 transition-all hover:shadow-indigo-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+                    className="w-full relative overflow-hidden group flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white py-3.5 rounded-2xl font-semibold shadow-lg shadow-teal-200 transition-all hover:shadow-teal-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                 >
                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                     <Plus size={20} className="relative z-10" />
@@ -88,13 +88,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Search Bar */}
             <div className="px-5 pb-4">
                 <div className="relative group">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={16} />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
                         placeholder="Tìm kiếm..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:bg-white transition-all shadow-sm"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-100 focus:border-teal-500 focus:bg-white transition-all shadow-sm"
                     />
                     {searchQuery && (
                         <button
@@ -118,15 +118,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         key={chat.id}
                         onClick={() => editingId !== chat.id && onSelectChat(chat.id)}
                         className={`group relative flex items-center gap-3 p-3 mx-1 rounded-xl cursor-pointer transition-all duration-200 border ${currentChatId === chat.id
-                            ? 'bg-indigo-50/80 border-indigo-100 text-indigo-700 shadow-sm'
+                            ? 'bg-teal-50/80 border-teal-100 text-teal-700 shadow-sm'
                             : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                     >
                         {currentChatId === chat.id && (
-                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-500 rounded-r-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-teal-500 rounded-r-full shadow-[0_0_8px_rgba(20,184,166,0.5)]"></div>
                         )}
 
-                        <MessageCircle size={18} className={`shrink-0 transition-colors ${currentChatId === chat.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`} />
+                        <MessageCircle size={18} className={`shrink-0 transition-colors ${currentChatId === chat.id ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500'}`} />
 
                         {editingId === chat.id ? (
                             <div className="flex-1 flex items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') cancelRename(); }}
-                                    className="flex-1 text-sm px-2 py-1 bg-white border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-100 outline-none shadow-sm"
+                                    className="flex-1 text-sm px-2 py-1 bg-white border border-teal-300 rounded-lg focus:ring-2 focus:ring-teal-100 outline-none shadow-sm"
                                     autoFocus
                                     onClick={(e) => e.stopPropagation()}
                                 />
@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity bg-gradient-to-l from-white/90 via-white/50 to-transparent pl-2 backdrop-blur-[1px]">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); startRename(chat.id, chat.title); }}
-                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                        className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all"
                                         title="Đổi tên"
                                     >
                                         <Pencil size={13} />
@@ -178,20 +178,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Footer Nav */}
-            <div className="p-4 border-t border-indigo-50/50 bg-slate-50/50 backdrop-blur-sm">
+            <div className="p-4 border-t border-teal-50/50 bg-slate-50/50 backdrop-blur-sm">
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={onOpenSettings}
-                        className="flex flex-col items-center justify-center p-3 hover:bg-white rounded-xl gap-1.5 transition-all text-slate-500 hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-indigo-100 group"
+                        className="flex flex-col items-center justify-center p-3 hover:bg-white rounded-xl gap-1.5 transition-all text-slate-500 hover:text-teal-600 hover:shadow-sm border border-transparent hover:border-teal-100 group"
                     >
-                        <BookOpen size={20} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                        <BookOpen size={20} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
                         <span className="text-xs font-semibold">Thư viện</span>
                     </button>
                     <button
                         onClick={onShowBookmarks}
-                        className="flex flex-col items-center justify-center p-3 hover:bg-white rounded-xl gap-1.5 transition-all text-slate-500 hover:text-violet-600 hover:shadow-sm border border-transparent hover:border-violet-100 group"
+                        className="flex flex-col items-center justify-center p-3 hover:bg-white rounded-xl gap-1.5 transition-all text-slate-500 hover:text-cyan-600 hover:shadow-sm border border-transparent hover:border-cyan-100 group"
                     >
-                        <Bookmark size={20} className="text-slate-400 group-hover:text-violet-500 transition-colors" />
+                        <Bookmark size={20} className="text-slate-400 group-hover:text-cyan-500 transition-colors" />
                         <span className="text-xs font-semibold">Đã lưu</span>
                     </button>
                 </div>

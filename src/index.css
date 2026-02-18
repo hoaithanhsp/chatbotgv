@@ -6,29 +6,30 @@
     --font-sans: 'Inter', system-ui, sans-serif;
     --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
 
-    --color-primary: #4F46E5;
-    /* Indigo 600 */
-    --color-primary-light: #818CF8;
-    /* Indigo 400 */
-    --color-primary-dark: #3730A3;
-    /* Indigo 800 */
+    /* Teal-based color system */
+    --color-primary: #0D9488;
+    /* Teal 600 */
+    --color-primary-light: #2DD4BF;
+    /* Teal 400 */
+    --color-primary-dark: #115E59;
+    /* Teal 800 */
 
-    --color-secondary: #0EA5E9;
-    /* Sky 500 */
-    --color-accent: #8B5CF6;
-    /* Violet 500 */
+    --color-secondary: #06B6D4;
+    /* Cyan 500 */
+    --color-accent: #14B8A6;
+    /* Teal 500 */
 
     --color-surface: #ffffff;
     --color-surface-translucent: rgba(255, 255, 255, 0.8);
 
     --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    --shadow-glass: 0 8px 32px 0 rgba(13, 148, 136, 0.07);
   }
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700;
+    @apply bg-slate-50 text-slate-800 antialiased selection:bg-teal-100 selection:text-teal-700;
     font-family: var(--font-sans);
   }
 
@@ -53,7 +54,7 @@
   }
 
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-cyan-600;
   }
 
   .card-hover {

@@ -221,13 +221,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center min-h-full p-8 animate-in fade-in duration-500">
                         <div className="relative mb-8 group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                             <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl ring-1 ring-slate-900/5">
                                 <span className="text-5xl animate-bounce-slow">🤖</span>
                             </div>
                         </div>
 
-                        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600 mb-4 text-center tracking-tight">
+                        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-cyan-600 mb-4 text-center tracking-tight">
                             Xin chào, {userName || 'Thầy/Cô'}!
                         </h1>
                         <p className="text-slate-500 max-w-lg mx-auto text-lg mb-10 text-center leading-relaxed">
@@ -236,8 +236,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
                         <div className="grid md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
                             {[
-                                { icon: '📝', title: 'Soạn giáo án', text: 'Hỗ trợ soạn giáo án chi tiết theo công văn mới', color: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300', category: 'giao-an' },
-                                { icon: '📋', title: 'Tạo đề thi', text: 'Tạo đề trắc nghiệm và tự luận có ma trận', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-300', category: 'de-thi' },
+                                { icon: '📝', title: 'Soạn giáo án', text: 'Hỗ trợ soạn giáo án chi tiết theo công văn mới', color: 'bg-teal-50 text-teal-600 border-teal-100 hover:border-teal-300', category: 'giao-an' },
+                                { icon: '📋', title: 'Tạo đề thi', text: 'Tạo đề trắc nghiệm và tự luận có ma trận', color: 'bg-cyan-50 text-cyan-600 border-cyan-100 hover:border-cyan-300', category: 'de-thi' },
                                 { icon: '💡', title: 'Ý tưởng dạy học', text: 'Gợi ý phương pháp dạy học tích cực', color: 'bg-amber-50 text-amber-600 border-amber-100 hover:border-amber-300', category: 'phuong-phap' },
                             ].map((action, idx) => (
                                 <button
@@ -258,7 +258,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         {onOpenTemplates && (
                             <button
                                 onClick={onOpenTemplates}
-                                className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 text-indigo-700 rounded-full text-sm font-medium hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                                className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 text-teal-700 rounded-full text-sm font-medium hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                             >
                                 <Zap size={16} />
                                 Xem tất cả Templates ({PROMPT_TEMPLATES.length}+)
@@ -276,13 +276,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
                         {isTyping && (
                             <div className="flex gap-4 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white flex items-center justify-center shrink-0 shadow-md">
                                     <Sparkles size={18} className="animate-pulse" />
                                 </div>
                                 <div className="flex items-center gap-1.5 bg-white px-5 py-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-100">
-                                    <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                    <span className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></span>
+                                    <span className="w-2 h-2 bg-teal-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce"></span>
                                 </div>
                             </div>
                         )}
@@ -292,7 +292,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
             </div>
 
             {/* Input Area */}
-            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-indigo-50 p-4 z-10 transition-all duration-300">
+            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-teal-50 p-4 z-10 transition-all duration-300">
                 <div className="max-w-4xl mx-auto relative group">
                     {/* Slash Command Menu */}
                     {showSlashMenu && filteredCommands.length > 0 && (
@@ -313,14 +313,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                                             });
                                         }}
                                         className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${idx === selectedSlashIdx
-                                            ? 'bg-indigo-50 border-l-2 border-indigo-500'
+                                            ? 'bg-teal-50 border-l-2 border-teal-500'
                                             : 'hover:bg-gray-50 border-l-2 border-transparent'
                                             }`}
                                     >
                                         <span className="text-lg">{cmd.icon}</span>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-mono text-sm font-semibold text-indigo-600">{cmd.command}</span>
+                                                <span className="font-mono text-sm font-semibold text-teal-600">{cmd.command}</span>
                                                 <span className="text-sm font-medium text-gray-800">{cmd.title}</span>
                                             </div>
                                             <p className="text-xs text-gray-500 truncate">{cmd.description}</p>
@@ -332,14 +332,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         </div>
                     )}
 
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl opacity-20 group-focus-within:opacity-40 transition duration-300 blur"></div>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl opacity-20 group-focus-within:opacity-40 transition duration-300 blur"></div>
                     <div className="relative flex items-end gap-2 p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
                         {/* Template Button */}
                         {onOpenTemplates && (
                             <button
                                 onClick={onOpenTemplates}
                                 title="Kho Prompt Templates"
-                                className="p-3 rounded-xl text-indigo-500 hover:bg-indigo-50 transition-colors mb-0.5 shrink-0"
+                                className="p-3 rounded-xl text-teal-500 hover:bg-teal-50 transition-colors mb-0.5 shrink-0"
                             >
                                 <Zap size={20} />
                             </button>
@@ -363,7 +363,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                             title={isListening ? 'Dừng ghi âm' : 'Nói để nhập văn bản'}
                             className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${isListening
                                 ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-200'
-                                : 'text-gray-400 hover:text-indigo-500 hover:bg-indigo-50'
+                                : 'text-gray-400 hover:text-teal-500 hover:bg-teal-50'
                                 }`}
                         >
                             {isListening ? <MicOff size={20} /> : <Mic size={20} />}
@@ -372,7 +372,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                             onClick={() => handleSubmit()}
                             disabled={!input.trim() || isTyping}
                             className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${input.trim() && !isTyping
-                                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5'
+                                ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-teal-200 hover:-translate-y-0.5'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 }`}
                         >

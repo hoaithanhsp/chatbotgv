@@ -28,12 +28,12 @@ export const ToolLibraryModal: React.FC<ToolLibraryModalProps> = ({ isOpen, onCl
                         <input
                             type="text"
                             placeholder="Tìm kiếm công cụ..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                         />
                     </div>
                     <div className="flex gap-2 mt-3 overflow-x-auto pb-2 custom-scrollbar">
                         {['Tất cả', 'Soạn giáo án', 'Tạo đề thi', 'Tiếng Anh', 'Toán học'].map(cat => (
-                            <button key={cat} className="px-3 py-1 rounded-full bg-white border border-gray-200 text-sm hover:border-indigo-500 hover:text-indigo-600 whitespace-nowrap">
+                            <button key={cat} className="px-3 py-1 rounded-full bg-white border border-gray-200 text-sm hover:border-teal-500 hover:text-teal-600 whitespace-nowrap">
                                 {cat}
                             </button>
                         ))}
@@ -64,7 +64,7 @@ export const ToolLibraryModal: React.FC<ToolLibraryModalProps> = ({ isOpen, onCl
                                     href={tool.url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 py-2 rounded-lg font-medium hover:bg-indigo-100 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 bg-teal-50 text-teal-700 py-2 rounded-lg font-medium hover:bg-teal-100 transition-colors"
                                 >
                                     Mở công cụ <ExternalLink size={14} />
                                 </a>

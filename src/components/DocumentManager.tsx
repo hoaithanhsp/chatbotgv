@@ -196,7 +196,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         {/* All documents */}
                         <button
                             onClick={() => { setActiveFolder(null); setUploadFolder(''); }}
-                            className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === null ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-200'
+                            className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === null ? 'bg-teal-100 text-teal-700 font-medium' : 'text-gray-600 hover:bg-gray-200'
                                 }`}
                         >
                             <FolderOpen size={15} />
@@ -210,7 +210,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                 <button
                                     key={folder}
                                     onClick={() => { setActiveFolder(folder); setUploadFolder(folder); }}
-                                    className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === folder ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-200'
+                                    className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === folder ? 'bg-teal-100 text-teal-700 font-medium' : 'text-gray-600 hover:bg-gray-200'
                                         }`}
                                 >
                                     <ChevronRight size={13} />
@@ -224,7 +224,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         {documents.some(d => !d.folder) && (
                             <button
                                 onClick={() => { setActiveFolder(''); setUploadFolder(''); }}
-                                className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === '' ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-gray-500 hover:bg-gray-200'
+                                className={`flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg mb-1 transition-all w-full text-left ${activeFolder === '' ? 'bg-teal-100 text-teal-700 font-medium' : 'text-gray-500 hover:bg-gray-200'
                                     }`}
                             >
                                 <File size={13} />
@@ -242,18 +242,18 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                     onChange={(e) => setNewFolderName(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
                                     placeholder="Tên thư mục..."
-                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500"
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-teal-500"
                                     autoFocus
                                 />
                                 <div className="flex gap-1">
-                                    <button onClick={handleCreateFolder} className="flex-1 px-2 py-1 text-xs bg-indigo-600 text-white rounded-md">Tạo</button>
+                                    <button onClick={handleCreateFolder} className="flex-1 px-2 py-1 text-xs bg-teal-600 text-white rounded-md">Tạo</button>
                                     <button onClick={() => setShowNewFolder(false)} className="flex-1 px-2 py-1 text-xs bg-gray-200 rounded-md">Hủy</button>
                                 </div>
                             </div>
                         ) : (
                             <button
                                 onClick={() => setShowNewFolder(true)}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 mt-2 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors w-full"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 mt-2 text-xs text-teal-600 hover:bg-teal-50 rounded-lg transition-colors w-full"
                             >
                                 <FolderPlus size={13} />
                                 Thêm thư mục
@@ -281,7 +281,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         {/* Upload Area */}
                         <div className="p-3 border-b border-gray-100 shrink-0">
                             <label
-                                className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all ${dragOver ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+                                className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all ${dragOver ? 'border-teal-500 bg-teal-50' : 'border-gray-300 hover:border-teal-400 hover:bg-gray-50'
                                     }`}
                                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                                 onDragLeave={() => setDragOver(false)}
@@ -289,15 +289,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                             >
                                 {uploading ? (
                                     <>
-                                        <Loader2 size={24} className="text-indigo-600 animate-spin mb-1" />
-                                        <p className="text-xs text-indigo-600 font-medium">{uploadProgress}</p>
+                                        <Loader2 size={24} className="text-teal-600 animate-spin mb-1" />
+                                        <p className="text-xs text-teal-600 font-medium">{uploadProgress}</p>
                                     </>
                                 ) : (
                                     <>
                                         <Upload size={24} className="text-gray-400 mb-1" />
                                         <p className="text-xs text-gray-600 font-medium">Kéo thả hoặc nhấn chọn file</p>
                                         <p className="text-[10px] text-gray-400 mt-0.5">PDF, DOCX, TXT
-                                            {uploadFolder && <span className="text-indigo-600"> → {uploadFolder}</span>}
+                                            {uploadFolder && <span className="text-teal-600"> → {uploadFolder}</span>}
                                         </p>
                                     </>
                                 )}
@@ -317,7 +317,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                             <button
                                 onClick={handleSelectAll}
                                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${allFilteredSelected
-                                    ? 'bg-indigo-100 text-indigo-700'
+                                    ? 'bg-teal-100 text-teal-700'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
@@ -347,11 +347,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                     {filteredDocs.map(doc => {
                                         const isSelected = selectedDocIds.includes(doc.id);
                                         return (
-                                            <div key={doc.id} className={`rounded-xl border-2 transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                                            <div key={doc.id} className={`rounded-xl border-2 transition-all ${isSelected ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'
                                                 }`}>
                                                 {/* Main row */}
                                                 <div className="flex items-center gap-2.5 p-3 cursor-pointer" onClick={() => toggleSelect(doc.id)}>
-                                                    <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                                                    <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isSelected ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
                                                         }`}>
                                                         {isSelected && <Check size={12} className="text-white" />}
                                                     </div>
@@ -360,7 +360,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                                         <p className="font-medium text-gray-900 text-sm truncate">{doc.title}</p>
                                                         <p className="text-[11px] text-gray-400 mt-0.5">
                                                             {doc.file_type.toUpperCase()} · {formatSize(doc.file_size)}
-                                                            {doc.folder && <span className="text-indigo-500"> · 📁 {doc.folder}</span>}
+                                                            {doc.folder && <span className="text-teal-500"> · 📁 {doc.folder}</span>}
                                                         </p>
                                                     </div>
 
@@ -435,12 +435,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 {/* Footer */}
                 <div className="p-4 border-t border-gray-200 flex justify-between items-center shrink-0">
                     {selectedDocIds.length > 0 && (
-                        <p className="text-xs text-indigo-600 font-medium">
+                        <p className="text-xs text-teal-600 font-medium">
                             ✅ {selectedDocIds.length} tài liệu sẽ được chatbot tham khảo
                         </p>
                     )}
                     <div className="flex-1" />
-                    <button onClick={onClose} className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 text-sm">
+                    <button onClick={onClose} className="px-5 py-2 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 text-sm">
                         Xong
                     </button>
                 </div>

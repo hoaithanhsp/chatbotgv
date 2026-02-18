@@ -36,7 +36,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
     return (
         <div className={`flex gap-4 p-5 ${isUser ? 'bg-white' : 'bg-slate-50/80'} border-b border-transparent hover:bg-slate-50 transition-colors duration-200 group`}>
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${isUser
-                ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white'
+                ? 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white'
                 : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
                 }`}>
                 {isUser ? <User size={18} strokeWidth={2.5} /> : <Bot size={18} strokeWidth={2.5} />}
@@ -44,7 +44,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
 
             <div className="flex-1 max-w-3xl space-y-2 overflow-hidden">
                 <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`text-sm font-bold ${isUser ? 'text-indigo-900' : 'text-slate-900'}`}>
+                    <span className={`text-sm font-bold ${isUser ? 'text-teal-900' : 'text-slate-900'}`}>
                         {isUser ? 'Thầy/Cô chính' : 'Trợ lý AI'}
                     </span>
                     <span className="text-xs text-slate-400 font-medium px-2 py-0.5 bg-slate-100 rounded-full">
@@ -63,9 +63,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                             components={{
                                 h1: ({ node, ...props }) => <h1 className="text-xl font-extrabold text-slate-900 mt-6 mb-4 tracking-tight" {...props} />,
                                 h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-slate-800 mt-5 mb-3 border-b border-slate-200 pb-1" {...props} />,
-                                h3: ({ node, ...props }) => <h3 className="text-base font-bold text-slate-800 mt-4 mb-2 text-indigo-700" {...props} />,
-                                ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-4 mb-4 space-y-1.5 marker:text-indigo-400" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-4 mb-4 space-y-1.5 marker:text-indigo-700 marker:font-semibold" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-base font-bold text-slate-800 mt-4 mb-2 text-teal-700" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-4 mb-4 space-y-1.5 marker:text-teal-400" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-4 mb-4 space-y-1.5 marker:text-teal-700 marker:font-semibold" {...props} />,
                                 li: ({ node, ...props }) => <li className="mb-1 pl-1" {...props} />,
                                 p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
                                 strong: ({ node, ...props }) => <strong className="font-bold text-slate-900" {...props} />,
@@ -77,7 +77,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                 ),
                                 thead: ({ node, ...props }) => <thead className="bg-slate-50 text-slate-700" {...props} />,
                                 tbody: ({ node, ...props }) => <tbody className="bg-white divide-y divide-slate-100" {...props} />,
-                                tr: ({ node, ...props }) => <tr className="hover:bg-indigo-50/30 transition-colors" {...props} />,
+                                tr: ({ node, ...props }) => <tr className="hover:bg-teal-50/30 transition-colors" {...props} />,
                                 th: ({ node, ...props }) => (
                                     <th className="px-4 py-3 text-left font-bold text-slate-700 text-xs uppercase tracking-wider whitespace-nowrap" {...props} />
                                 ),
@@ -104,13 +104,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                             </div>
                                         </div>
                                     ) : (
-                                        <code className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md text-sm font-mono border border-indigo-100/50" {...props}>
+                                        <code className="bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded-md text-sm font-mono border border-teal-100/50" {...props}>
                                             {children}
                                         </code>
                                     )
                                 },
-                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-400 pl-4 py-2 my-4 italic text-slate-600 bg-slate-50 rounded-r-lg" {...props} />,
-                                a: ({ node, ...props }) => <a className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-teal-400 pl-4 py-2 my-4 italic text-slate-600 bg-slate-50 rounded-r-lg" {...props} />,
+                                a: ({ node, ...props }) => <a className="text-teal-600 hover:text-teal-800 hover:underline font-medium transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
                                 hr: ({ node, ...props }) => <hr className="my-6 border-slate-200" {...props} />,
                             }}
                         >
@@ -123,7 +123,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                     <div className="flex items-center gap-2 pt-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button
                             onClick={handleCopy}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-white hover:text-teal-600 hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
                             title="Sao chép (giữ nguyên LaTeX)"
                         >
                             {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}

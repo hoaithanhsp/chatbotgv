@@ -43,7 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             case 'gemini-3-flash-preview':
                 return { label: '3 Flash', desc: 'Nhanh nhất, phù hợp chat thông thường', badge: 'Default', color: 'emerald' };
             case 'gemini-3-pro-preview':
-                return { label: '3 Pro', desc: 'Mạnh hơn, phù hợp phân tích chuyên sâu', badge: 'Pro', color: 'indigo' };
+                return { label: '3 Pro', desc: 'Mạnh hơn, phù hợp phân tích chuyên sâu', badge: 'Pro', color: 'teal' };
             case 'gemini-2.5-flash':
                 return { label: '2.5 Flash', desc: 'Ổn định, model dự phòng tin cậy', badge: 'Stable', color: 'amber' };
             default:
@@ -75,11 +75,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                         key={model}
                                         onClick={() => handleModelSelect(model)}
                                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${isActive
-                                                ? 'border-indigo-500 bg-indigo-50'
-                                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                            ? 'border-teal-500 bg-teal-50'
+                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                             }`}
                                     >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-indigo-600' : 'bg-gray-200'
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-teal-600' : 'bg-gray-200'
                                             }`}>
                                             {isActive ? <Check size={16} className="text-white" /> : <div className="w-3 h-3 rounded-full bg-gray-400" />}
                                         </div>
@@ -88,8 +88,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                                 <span className="font-medium text-gray-900 text-sm">{info.label}</span>
                                                 {info.badge && (
                                                     <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${info.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' :
-                                                            info.color === 'indigo' ? 'bg-indigo-100 text-indigo-700' :
-                                                                'bg-amber-100 text-amber-700'
+                                                        info.color === 'teal' ? 'bg-teal-100 text-teal-700' :
+                                                            'bg-amber-100 text-amber-700'
                                                         }`}>{info.badge}</span>
                                                 )}
                                             </div>
@@ -109,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             type="password"
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             placeholder="AIza..."
                         />
                         <div className="flex items-center justify-between mt-2">
@@ -118,7 +118,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                 href="https://aistudio.google.com/api-keys"
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium"
+                                className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline font-medium"
                             >
                                 <ExternalLink size={11} />
                                 Lấy API Key
@@ -138,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     type="text"
                                     value={supabaseUrl}
                                     onChange={(e) => setSupabaseUrl(e.target.value)}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
                             <div>
@@ -147,7 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                                     type="password"
                                     value={supabaseKey}
                                     onChange={(e) => setSupabaseKey(e.target.value)}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                 />
                             </div>
                         </div>
@@ -163,7 +163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                        className="px-5 py-2 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 transition-colors"
                     >
                         Lưu thay đổi
                     </button>

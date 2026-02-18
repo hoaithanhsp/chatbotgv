@@ -321,7 +321,7 @@ function App() {
     ? chatHistory.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : chatHistory;
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div></div>;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
@@ -332,14 +332,14 @@ function App() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <Cpu size={20} className="text-indigo-600" />
+          <Cpu size={20} className="text-teal-600" />
           <span className="font-bold text-gray-900">Trợ lý GV</span>
         </div>
 
         {/* New Chat Button - Always visible */}
         <button
           onClick={handleNewChat}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-xs font-medium shadow-sm active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-xs font-medium shadow-sm active:scale-95"
         >
           <Plus size={15} />
           <span className="hidden sm:inline">Mới</span>
@@ -352,7 +352,7 @@ function App() {
               key={model}
               onClick={() => handleModelChange(model)}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${selectedModel === model
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-teal-600 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
             >
@@ -368,7 +368,7 @@ function App() {
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors text-xs font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg transition-colors text-xs font-medium"
             >
               <Download size={15} />
               <span className="hidden sm:inline">Tải xuống</span>
@@ -422,7 +422,7 @@ function App() {
           onClick={() => setShowSettings(true)}
           className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors group"
         >
-          <Key size={16} className="text-gray-500 group-hover:text-indigo-600" />
+          <Key size={16} className="text-gray-500 group-hover:text-teal-600" />
           <span className="text-xs font-medium text-red-500 hidden sm:inline">Lấy API key để sử dụng app</span>
           <Settings size={14} className="text-gray-400" />
         </button>
@@ -561,7 +561,7 @@ function App() {
                   <div key={b.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{b.sessionTitle}</span>
+                        <span className="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">{b.sessionTitle}</span>
                         <span className="text-xs text-gray-400 ml-2">{new Date(b.bookmarkedAt).toLocaleDateString('vi-VN')}</span>
                       </div>
                       <button
