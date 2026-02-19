@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AppStep } from './skknTypes';
 import type { SKKNData, SectionContent, TitleSuggestion, UserRequirements } from './skknTypes';
 import { STEP_LABELS } from './skknConstants';
@@ -8,7 +8,7 @@ import SKKNStepAnalysis from './components/SKKNStepAnalysis';
 import SKKNStepDashboard from './components/SKKNStepDashboard';
 import SKKNStepTitle from './components/SKKNStepTitle';
 import SKKNStepEditor from './components/SKKNStepEditor';
-import { Check, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -113,7 +113,7 @@ const parseSectionsLocal = (text: string): SectionContent[] => {
 
 const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
     const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
-    const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
+    const [hasUploaded, setHasUploaded] = useState(false);
     const [data, setData] = useState<SKKNData>({
         fileName: '', originalText: '', currentTitle: '',
         analysis: null, titleSuggestions: [],
@@ -125,6 +125,9 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
     const [userRequirements, setUserRequirements] = useState<UserRequirements>({
         pageLimit: null, referenceDocuments: [], customInstructions: ''
     });
+    // Track which lazy operations have been triggered
+    const [analysisTriggered, setAnalysisTriggered] = useState(false);
+    const [titleGenTriggered, setTitleGenTriggered] = useState(false);
 
     const hasApiKey = !!geminiService.getApiKey();
 
@@ -134,80 +137,95 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
 
-    const goToStep = useCallback((step: AppStep) => {
+    // --- Tab navigation (free after upload) ---
+    const handleTabClick = (step: AppStep) => {
+        if (!hasUploaded && step !== AppStep.UPLOAD) return; // Can't go anywhere before upload
         setCurrentStep(step);
-        setMaxReachedStep(prev => Math.max(prev, step));
-    }, []);
-
-    const handleStepClick = (step: number) => {
-        if (step <= maxReachedStep && step !== currentStep) setCurrentStep(step as AppStep);
     };
 
-    // --- Upload & Analyze ---
-    const handleUpload = async (text: string, fileName: string) => {
+    // --- Lazy analysis: runs when user clicks "Phân tích" tab for the first time ---
+    useEffect(() => {
+        if (currentStep === AppStep.ANALYZING && !data.analysis && hasUploaded && !analysisTriggered) {
+            setAnalysisTriggered(true);
+            runAnalysis();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep, data.analysis, hasUploaded, analysisTriggered]);
+
+    // --- Lazy title generation: runs when user clicks "Tên đề tài" tab for the first time ---
+    useEffect(() => {
+        if (currentStep === AppStep.TITLE_SELECTION && data.titleSuggestions.length === 0 && hasUploaded && !titleGenTriggered) {
+            setTitleGenTriggered(true);
+            runTitleGeneration();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep, data.titleSuggestions.length, hasUploaded, titleGenTriggered]);
+
+    const runAnalysis = async () => {
         if (!geminiService.getApiKey()) {
             addToast('error', 'Vui lòng cài API Key trong phần Cài đặt trước!');
             return;
         }
         setIsProcessing(true);
         try {
-            const result = await geminiService.analyzeSKKN(text);
-            let sections: SectionContent[] = [];
-            const localSections = parseSectionsLocal(text);
+            const result = await geminiService.analyzeSKKN(data.originalText);
 
+            // Also try AI structure parsing
+            let sections = [...data.sections]; // keep existing local-parsed sections as fallback
             try {
-                const parsed = await geminiService.parseStructure(text);
-                sections = parsed.map(s => ({
+                const parsed = await geminiService.parseStructure(data.originalText);
+                const aiSections = parsed.map(s => ({
                     id: s.id, title: s.title, level: s.level || 1,
                     parentId: s.parentId || undefined,
                     originalContent: s.content || '', refinedContent: '',
                     isProcessing: false, suggestions: [], editSuggestions: []
                 }));
 
-                const aiLevel1Count = sections.filter(s => s.level === 1).length;
-                const localLevel1Count = localSections.filter(s => s.level === 1).length;
-                if (sections.length <= 3 && localSections.length > sections.length) {
-                    const localTitles = localSections.map(s => s.title.toLowerCase().substring(0, 25));
-                    const merged = [...localSections];
-                    for (const aiSec of sections) {
+                const aiLevel1Count = aiSections.filter(s => s.level === 1).length;
+                const localLevel1Count = sections.filter(s => s.level === 1).length;
+                if (aiSections.length <= 3 && sections.length > aiSections.length) {
+                    const localTitles = sections.map(s => s.title.toLowerCase().substring(0, 25));
+                    const merged = [...sections];
+                    for (const aiSec of aiSections) {
                         const aiPrefix = aiSec.title.toLowerCase().substring(0, 25);
                         if (!localTitles.some(t => t.includes(aiPrefix) || aiPrefix.includes(t))) {
                             merged.push({ ...aiSec, id: `ai-${aiSec.id}` });
                         }
                     }
                     sections = merged;
-                } else if (aiLevel1Count < localLevel1Count) {
-                    const existing = sections.map(s => s.title.toLowerCase().substring(0, 25));
-                    for (const ls of localSections) {
-                        const p = ls.title.toLowerCase().substring(0, 25);
-                        if (!existing.some(t => t.includes(p) || p.includes(t))) {
-                            sections.push({ ...ls, id: `merged-${ls.id}` });
+                } else if (aiSections.length > sections.length) {
+                    sections = aiSections;
+                    // Merge missing local sections
+                    if (aiLevel1Count < localLevel1Count) {
+                        const existing = sections.map(s => s.title.toLowerCase().substring(0, 25));
+                        for (const ls of data.sections) {
+                            const p = ls.title.toLowerCase().substring(0, 25);
+                            if (!existing.some(t => t.includes(p) || p.includes(t))) {
+                                sections.push({ ...ls, id: `merged-${ls.id}` });
+                            }
                         }
                     }
                 }
             } catch {
-                sections = localSections;
+                // Keep local sections
             }
 
-            if (sections.length === 0) sections = localSections;
-
             setData(prev => ({
-                ...prev, fileName, originalText: text,
-                currentTitle: result.currentTitle, analysis: result.analysis, sections
+                ...prev,
+                currentTitle: result.currentTitle,
+                analysis: result.analysis,
+                sections: sections.length > 0 ? sections : prev.sections
             }));
-            goToStep(AppStep.ANALYZING);
             addToast('success', `Phân tích hoàn tất! Tìm thấy ${sections.length} mục.`);
-        } catch (error: any) {
+        } catch {
             addToast('error', 'Lỗi phân tích. Vui lòng kiểm tra API Key.');
+            setAnalysisTriggered(false); // allow retry
         } finally {
             setIsProcessing(false);
         }
     };
 
-    const handleAnalysisContinue = () => goToStep(AppStep.DASHBOARD);
-
-    const handleDashboardContinue = async () => {
-        goToStep(AppStep.TITLE_SELECTION);
+    const runTitleGeneration = async () => {
         setIsProcessing(true);
         try {
             const summary = data.originalText.substring(0, 3000);
@@ -215,25 +233,56 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
             setData(prev => ({ ...prev, titleSuggestions: suggestions }));
         } catch {
             addToast('error', 'Lỗi tạo đề xuất tên đề tài.');
+            setTitleGenTriggered(false); // allow retry
         } finally {
             setIsProcessing(false);
         }
     };
 
+    // --- Upload: parse sections locally, then go to Analysis tab ---
+    const handleUpload = async (text: string, fileName: string) => {
+        if (!geminiService.getApiKey()) {
+            addToast('error', 'Vui lòng cài API Key trong phần Cài đặt trước!');
+            return;
+        }
+        setIsProcessing(true);
+        try {
+            // Parse sections locally (fast, no API call)
+            const sections = parseSectionsLocal(text);
+
+            setData(prev => ({
+                ...prev, fileName, originalText: text, sections
+            }));
+            setHasUploaded(true);
+            setCurrentStep(AppStep.ANALYZING); // Go to analysis tab (will trigger lazy analysis)
+            addToast('success', `Đã tải lên "${fileName}". Đang chuyển sang phân tích...`);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleAnalysisContinue = () => setCurrentStep(AppStep.DASHBOARD);
+
+    const handleDashboardContinue = () => {
+        setCurrentStep(AppStep.TITLE_SELECTION);
+        // Title generation will be triggered lazily by useEffect
+    };
+
     const handleTitleSelect = (title: TitleSuggestion) => {
         setData(prev => ({ ...prev, selectedNewTitle: title }));
-        goToStep(AppStep.CONTENT_REFINEMENT);
+        setCurrentStep(AppStep.CONTENT_REFINEMENT);
         addToast('info', `Đã chọn: "${title.title.substring(0, 50)}..."`);
     };
 
     const handleRefineSection = async (sectionId: string) => {
-        if (!data.selectedNewTitle) return;
+        const effectiveTitle = data.selectedNewTitle?.title || data.currentTitle;
+        if (!effectiveTitle) return;
         setProcessingSectionId(sectionId);
         const section = data.sections.find(s => s.id === sectionId);
         if (section && section.originalContent) {
             try {
                 const refined = await geminiService.refineSectionContent(
-                    section.title, section.originalContent, data.selectedNewTitle.title
+                    section.title, section.originalContent, effectiveTitle
                 );
                 setData(prev => ({
                     ...prev,
@@ -248,13 +297,14 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
     };
 
     const handleRefineSectionWithRefs = async (sectionId: string) => {
-        if (!data.selectedNewTitle) return;
+        const effectiveTitle = data.selectedNewTitle?.title || data.currentTitle;
+        if (!effectiveTitle) return;
         setProcessingSectionId(sectionId);
         const section = data.sections.find(s => s.id === sectionId);
         if (section && section.originalContent) {
             try {
                 const refined = await geminiService.refineSectionWithReferences(
-                    section.title, section.originalContent, data.selectedNewTitle.title, userRequirements
+                    section.title, section.originalContent, effectiveTitle, userRequirements
                 );
                 setData(prev => ({
                     ...prev,
@@ -313,7 +363,7 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
             const outName = `SKKN_Upgrade_${data.fileName?.replace(/\.[^.]+$/, '') || 'document'}.docx`;
             saveAs(blob, outName);
             addToast('success', `Đã tải xuống: ${outName}`);
-        } catch (error) {
+        } catch {
             const fullContent = data.sections.map(s =>
                 `${s.title.toUpperCase()}\n\n${s.refinedContent || s.originalContent}\n`
             ).join('\n-----------------------------------\n\n');
@@ -325,6 +375,9 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
             addToast('info', `Đã tải dạng text: ${outName}`);
         }
     };
+
+    // --- Tabs (excluding Upload) ---
+    const TABS = STEP_LABELS.filter(s => s.step !== AppStep.UPLOAD);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f8fafc' }}>
@@ -372,45 +425,48 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
 
                 <div style={{ flex: 1 }} />
 
-                {/* Progress Steps */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {STEP_LABELS.map((item, i) => (
-                        <React.Fragment key={item.step}>
-                            <div
-                                onClick={() => handleStepClick(item.step)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 4,
-                                    cursor: item.step <= maxReachedStep ? 'pointer' : 'default',
-                                    padding: '4px 8px', borderRadius: 6,
-                                    background: currentStep === item.step ? '#f0fdfa' : 'transparent',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                <span style={{
-                                    width: 20, height: 20, borderRadius: '50%', fontSize: 10,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    background: currentStep > item.step ? '#10b981' : currentStep === item.step ? '#14b8a6' : '#e2e8f0',
-                                    color: currentStep >= item.step ? 'white' : '#94a3b8',
-                                    fontWeight: 700
-                                }}>
-                                    {currentStep > item.step ? <Check size={11} /> : item.icon}
-                                </span>
-                                <span style={{
-                                    fontSize: 11, fontWeight: currentStep === item.step ? 700 : 400,
-                                    color: currentStep >= item.step ? '#0d9488' : '#94a3b8'
-                                }}>
-                                    {item.label}
-                                </span>
-                            </div>
-                            {i < STEP_LABELS.length - 1 && (
-                                <div style={{
-                                    width: 20, height: 2, borderRadius: 1,
-                                    background: currentStep > item.step ? '#14b8a6' : '#e2e8f0'
-                                }} />
-                            )}
-                        </React.Fragment>
-                    ))}
-                </div>
+                {/* Navigation Tabs — free click after upload */}
+                {hasUploaded && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {TABS.map(tab => {
+                            const isActive = currentStep === tab.step;
+                            const isLoading = isProcessing && currentStep === tab.step;
+                            return (
+                                <button
+                                    key={tab.step}
+                                    onClick={() => handleTabClick(tab.step)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 5,
+                                        padding: '6px 14px', borderRadius: 8,
+                                        border: isActive ? '1.5px solid #14b8a6' : '1px solid transparent',
+                                        background: isActive ? '#f0fdfa' : 'transparent',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        position: 'relative',
+                                    }}
+                                >
+                                    <span style={{ fontSize: 14 }}>
+                                        {isLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : tab.icon}
+                                    </span>
+                                    <span style={{
+                                        fontSize: 12, fontWeight: isActive ? 700 : 500,
+                                        color: isActive ? '#0d9488' : '#64748b'
+                                    }}>
+                                        {tab.label}
+                                    </span>
+                                    {/* Active indicator dot */}
+                                    {isActive && (
+                                        <div style={{
+                                            position: 'absolute', bottom: -1, left: '50%', transform: 'translateX(-50%)',
+                                            width: 20, height: 3, borderRadius: 2,
+                                            background: '#14b8a6'
+                                        }} />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Main Content */}
@@ -419,26 +475,121 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
                     <SKKNStepUpload onUpload={handleUpload} isProcessing={isProcessing} />
                 )}
 
-                {currentStep === AppStep.ANALYZING && data.analysis && (
-                    <SKKNStepAnalysis metrics={data.analysis} onContinue={handleAnalysisContinue} />
+                {currentStep === AppStep.ANALYZING && (
+                    <>
+                        {isProcessing && !data.analysis && (
+                            <div style={{
+                                minHeight: 400, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', gap: 16
+                            }}>
+                                <Loader2 size={40} style={{ color: '#14b8a6', animation: 'spin 1s linear infinite' }} />
+                                <p style={{ color: '#64748b', fontSize: 15, fontWeight: 500 }}>
+                                    Đang phân tích SKKN bằng AI...
+                                </p>
+                                <p style={{ color: '#94a3b8', fontSize: 13 }}>
+                                    Quá trình này có thể mất 30-60 giây
+                                </p>
+                            </div>
+                        )}
+                        {data.analysis && (
+                            <SKKNStepAnalysis metrics={data.analysis} onContinue={handleAnalysisContinue} />
+                        )}
+                        {!isProcessing && !data.analysis && (
+                            <div style={{
+                                minHeight: 300, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', gap: 12
+                            }}>
+                                <AlertCircle size={32} style={{ color: '#f59e0b' }} />
+                                <p style={{ color: '#64748b', fontSize: 14 }}>Chưa thể phân tích. Vui lòng thử lại.</p>
+                                <button
+                                    onClick={() => { setAnalysisTriggered(false); }}
+                                    style={{
+                                        padding: '8px 20px', borderRadius: 8, border: 'none',
+                                        background: '#14b8a6', color: 'white', fontWeight: 600,
+                                        cursor: 'pointer', fontSize: 13
+                                    }}
+                                >
+                                    Thử lại
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
 
-                {currentStep === AppStep.DASHBOARD && data.analysis && (
-                    <SKKNStepDashboard
-                        sections={data.sections}
-                        analysis={data.analysis}
-                        currentTitle={data.currentTitle}
-                        onContinue={handleDashboardContinue}
-                    />
+                {currentStep === AppStep.DASHBOARD && (
+                    <>
+                        {data.analysis ? (
+                            <SKKNStepDashboard
+                                sections={data.sections}
+                                analysis={data.analysis}
+                                currentTitle={data.currentTitle}
+                                onContinue={handleDashboardContinue}
+                            />
+                        ) : (
+                            <div style={{
+                                minHeight: 300, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', gap: 12
+                            }}>
+                                <AlertCircle size={32} style={{ color: '#f59e0b' }} />
+                                <p style={{ color: '#64748b', fontSize: 14 }}>
+                                    Cần phân tích trước. Hãy chuyển sang tab <b>Phân tích</b> để bắt đầu.
+                                </p>
+                                <button
+                                    onClick={() => setCurrentStep(AppStep.ANALYZING)}
+                                    style={{
+                                        padding: '8px 20px', borderRadius: 8, border: 'none',
+                                        background: '#14b8a6', color: 'white', fontWeight: 600,
+                                        cursor: 'pointer', fontSize: 13
+                                    }}
+                                >
+                                    Đi đến Phân tích
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {currentStep === AppStep.TITLE_SELECTION && (
-                    <SKKNStepTitle
-                        currentTitle={data.currentTitle}
-                        suggestions={data.titleSuggestions}
-                        onSelectTitle={handleTitleSelect}
-                        isGenerating={isProcessing}
-                    />
+                    <>
+                        {isProcessing && data.titleSuggestions.length === 0 && (
+                            <div style={{
+                                minHeight: 400, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', gap: 16
+                            }}>
+                                <Loader2 size={40} style={{ color: '#14b8a6', animation: 'spin 1s linear infinite' }} />
+                                <p style={{ color: '#64748b', fontSize: 15, fontWeight: 500 }}>
+                                    Đang tạo đề xuất tên đề tài...
+                                </p>
+                            </div>
+                        )}
+                        {data.titleSuggestions.length > 0 && (
+                            <SKKNStepTitle
+                                currentTitle={data.currentTitle}
+                                suggestions={data.titleSuggestions}
+                                onSelectTitle={handleTitleSelect}
+                                isGenerating={isProcessing}
+                            />
+                        )}
+                        {!isProcessing && data.titleSuggestions.length === 0 && (
+                            <div style={{
+                                minHeight: 300, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', gap: 12
+                            }}>
+                                <AlertCircle size={32} style={{ color: '#f59e0b' }} />
+                                <p style={{ color: '#64748b', fontSize: 14 }}>Chưa tạo được đề xuất. Vui lòng thử lại.</p>
+                                <button
+                                    onClick={() => { setTitleGenTriggered(false); }}
+                                    style={{
+                                        padding: '8px 20px', borderRadius: 8, border: 'none',
+                                        background: '#14b8a6', color: 'white', fontWeight: 600,
+                                        cursor: 'pointer', fontSize: 13
+                                    }}
+                                >
+                                    Thử lại
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {currentStep === AppStep.CONTENT_REFINEMENT && (
