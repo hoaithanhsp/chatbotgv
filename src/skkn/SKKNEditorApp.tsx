@@ -434,7 +434,7 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
                             return (
                                 <button
                                     key={tab.step}
-                                    onClick={() => handleTabClick(tab.step)}
+                                    onClick={() => handleTabClick(tab.step as AppStep)}
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: 5,
                                         padding: '6px 14px', borderRadius: 8,
