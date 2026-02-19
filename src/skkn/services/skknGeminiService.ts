@@ -1,10 +1,9 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { AI_MODELS } from "../skknTypes";
 import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AIModelId } from "../skknTypes";
 import { buildKnowledgeContext, SCORING_CRITERIA, CLICHE_PHRASES, COMPARISON_TABLE_TEMPLATE } from "../knowledge-base";
 
 // --- API Key & Model Management ---
-// Dùng chung API key với chatbot (gemini_api_key)
 const STORAGE_KEY_MODEL = 'skkn_editor_model';
 
 export const getApiKey = (): string | null => {
@@ -14,17 +13,27 @@ export const getApiKey = (): string | null => {
 export const getSelectedModel = (): AIModelId => {
     const stored = localStorage.getItem(STORAGE_KEY_MODEL);
     if (stored && AI_MODELS.some(m => m.id === stored)) return stored as AIModelId;
-    return AI_MODELS.find(m => m.default)?.id || 'gemini-3-flash-preview';
+    return AI_MODELS.find(m => m.default)?.id || 'gemini-2.5-flash';
 };
 
 export const setSelectedModel = (model: AIModelId): void => {
     localStorage.setItem(STORAGE_KEY_MODEL, model);
 };
 
-const getAI = () => {
+const getGenAI = () => {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error("API_KEY_MISSING");
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenerativeAI(apiKey);
+};
+
+// --- Timeout wrapper ---
+const withTimeout = <T>(promise: Promise<T>, ms: number = 90000): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`Request timeout after ${ms / 1000}s`)), ms)
+        )
+    ]);
 };
 
 // --- Fallback model chain ---
@@ -34,16 +43,19 @@ const getModelChain = (): string[] => {
     return [selected, ...allModels.filter(m => m !== selected)];
 };
 
-const callWithFallback = async (fn: (model: string) => Promise<any>): Promise<any> => {
+const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T> => {
     const chain = getModelChain();
     let lastError: any = null;
 
     for (const model of chain) {
         try {
-            return await fn(model);
+            console.log(`[SKKN] Trying model: ${model}`);
+            const result = await withTimeout(fn(model));
+            console.log(`[SKKN] ✅ Success with model: ${model}`);
+            return result;
         } catch (error: any) {
             lastError = error;
-            console.warn(`Model ${model} failed, trying next...`, error.message);
+            console.warn(`[SKKN] ❌ Model ${model} failed:`, error.message);
             if (error.message === 'API_KEY_MISSING') throw error;
             continue;
         }
@@ -51,22 +63,54 @@ const callWithFallback = async (fn: (model: string) => Promise<any>): Promise<an
     throw lastError;
 };
 
-// --- Analysis ---
+// --- Helper: Generate JSON content with structured output ---
+const generateJSON = async (modelName: string, prompt: string, schema: any, temperature: number = 0): Promise<any> => {
+    const genAI = getGenAI();
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+            temperature,
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        }
+    });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    if (!text) throw new Error("No response from AI");
+    return JSON.parse(text);
+};
+
+// --- Helper: Generate text content ---
+const generateText = async (modelName: string, prompt: string, temperature: number = 0.3): Promise<string> => {
+    const genAI = getGenAI();
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+            temperature,
+            maxOutputTokens: 8192,
+        }
+    });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    return response.text() || "";
+};
+
+// --- Analyze SKKN ---
 export const analyzeSKKN = async (text: string): Promise<{ analysis: AnalysisMetrics, currentTitle: string }> => {
-    const ai = getAI();
     const truncated = text.substring(0, 8000);
 
     const scoringContext = Object.values(SCORING_CRITERIA).map(sc =>
         `- ${sc.name} (${sc.maxScore}đ): ${sc.description}\n  Mức cao nhất: ${sc.levels[0].label}`
     ).join('\n');
 
-    const clicheList = CLICHE_PHRASES.slice(0, 12).map(c => `"${c}"`).join(', ');
+    const clicheList = CLICHE_PHRASES.slice(0, 12).map(c => `"\"${c}\""`).join(', ');
 
     const prompt = `
     Bạn là chuyên gia thẩm định Sáng kiến Kinh nghiệm (SKKN) cấp Bộ với 20 năm kinh nghiệm. Hãy phân tích CHUYÊN SÂU văn bản SKKN sau.
     
     TIÊU CHÍ CHẤM SKKN (theo Nghị định 13/2012/NĐ-CP):
-${scoringContext}
+    ${scoringContext}
     
     NHIỆM VỤ CHI TIẾT:
     1. Xác định tên đề tài hiện tại (trích chính xác từ văn bản).
@@ -89,7 +133,7 @@ ${scoringContext}
        - KHÔNG ĐƯỢC BỎ TRỐNG comment. Nếu điểm thấp, PHẢI giải thích thiếu gì
        - Ví dụ comment tốt: "Ứng dụng AI Gemini vào dạy học là ý tưởng rất mới, chưa phổ biến trong SKKN hiện tại"
        - Ví dụ comment XẤU (KHÔNG CHẤP NHẬN): "" hoặc "Tốt" hoặc "Chưa tốt"
-
+    
     4. Ước tỷ lệ đạo văn — kiểm tra câu sáo rỗng phổ biến: ${clicheList}
     5. Đánh giá chi tiết từng phần (sectionFeedback): cho mỗi phần đánh giá status (good/needs_work/missing), tóm tắt, và 2-3 gợi ý CỤ THỂ (không chung chung).
     
@@ -97,61 +141,52 @@ ${scoringContext}
     ${truncated}
   `;
 
-    return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                temperature: 0,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
+    const schema = {
+        type: SchemaType.OBJECT,
+        properties: {
+            currentTitle: { type: SchemaType.STRING },
+            plagiarismScore: { type: SchemaType.NUMBER, description: "Percentage 0-100" },
+            qualityScore: { type: SchemaType.NUMBER, description: "Total score 0-100" },
+            structure: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    hasIntro: { type: SchemaType.BOOLEAN },
+                    hasTheory: { type: SchemaType.BOOLEAN },
+                    hasReality: { type: SchemaType.BOOLEAN },
+                    hasSolution: { type: SchemaType.BOOLEAN },
+                    hasResult: { type: SchemaType.BOOLEAN },
+                    hasConclusion: { type: SchemaType.BOOLEAN },
+                    missing: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
+                }
+            },
+            qualityCriteria: {
+                type: SchemaType.ARRAY,
+                items: {
+                    type: SchemaType.OBJECT,
                     properties: {
-                        currentTitle: { type: Type.STRING },
-                        plagiarismScore: { type: Type.NUMBER, description: "Percentage 0-100" },
-                        qualityScore: { type: Type.NUMBER, description: "Total score 0-100" },
-                        structure: {
-                            type: Type.OBJECT,
-                            properties: {
-                                hasIntro: { type: Type.BOOLEAN },
-                                hasTheory: { type: Type.BOOLEAN },
-                                hasReality: { type: Type.BOOLEAN },
-                                hasSolution: { type: Type.BOOLEAN },
-                                hasResult: { type: Type.BOOLEAN },
-                                hasConclusion: { type: Type.BOOLEAN },
-                                missing: { type: Type.ARRAY, items: { type: Type.STRING } }
-                            }
-                        },
-                        qualityCriteria: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    criteria: { type: Type.STRING, description: "Tên tiêu chí đánh giá" },
-                                    score: { type: Type.NUMBER, description: "Điểm từ 1-10, đánh giá chính xác theo nội dung thực tế" },
-                                    comment: { type: Type.STRING, description: "Nhận xét CỤ THỂ ít nhất 30 ký tự, giải thích tại sao cho điểm này. KHÔNG ĐƯỢC bỏ trống." }
-                                }
-                            }
-                        },
-                        sectionFeedback: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    sectionId: { type: Type.STRING, description: "One of: intro, theory, reality, solution, result, conclusion" },
-                                    status: { type: Type.STRING, description: "One of: good, needs_work, missing" },
-                                    summary: { type: Type.STRING },
-                                    suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                                }
-                            }
-                        }
+                        criteria: { type: SchemaType.STRING, description: "Tên tiêu chí đánh giá" },
+                        score: { type: SchemaType.NUMBER, description: "Điểm từ 1-10" },
+                        comment: { type: SchemaType.STRING, description: "Nhận xét CỤ THỂ ít nhất 30 ký tự" }
+                    }
+                }
+            },
+            sectionFeedback: {
+                type: SchemaType.ARRAY,
+                items: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        sectionId: { type: SchemaType.STRING, description: "One of: intro, theory, reality, solution, result, conclusion" },
+                        status: { type: SchemaType.STRING, description: "One of: good, needs_work, missing" },
+                        summary: { type: SchemaType.STRING },
+                        suggestions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
                     }
                 }
             }
-        });
+        }
+    };
 
-        if (!response.text) throw new Error("No response from AI");
-        const parsed = JSON.parse(response.text);
+    return callWithFallback(async (model) => {
+        const parsed = await generateJSON(model, prompt, schema, 0);
         return {
             analysis: {
                 plagiarismScore: parsed.plagiarismScore,
@@ -167,7 +202,6 @@ ${scoringContext}
 
 // --- Parse SKKN Structure (AI-powered, multi-level) ---
 export const parseStructure = async (text: string): Promise<{ id: string, title: string, level: number, parentId: string, content: string }[]> => {
-    const ai = getAI();
     const truncated = text.substring(0, 80000);
 
     const prompt = `
@@ -184,12 +218,8 @@ export const parseStructure = async (text: string): Promise<{ id: string, title:
       {"id":"s3-2","title":"2. Thực trạng vấn đề","level":2,"parentId":"s3","content":"..."},
       {"id":"s3-3","title":"3. Các giải pháp","level":2,"parentId":"s3","content":""},
       {"id":"s3-3-1","title":"Giải pháp 1: ...","level":3,"parentId":"s3-3","content":"..."},
-      {"id":"s3-3-2","title":"Giải pháp 2: ...","level":3,"parentId":"s3-3","content":"..."},
-      {"id":"s3-3-3","title":"Giải pháp 3: ...","level":3,"parentId":"s3-3","content":"..."},
-      {"id":"s3-4","title":"4. Kết quả đạt được","level":2,"parentId":"s3","content":"..."},
       {"id":"s4","title":"PHẦN III. KẾT LUẬN VÀ KIẾN NGHỊ","level":1,"parentId":"","content":"..."},
-      {"id":"s5","title":"TÀI LIỆU THAM KHẢO","level":1,"parentId":"","content":"..."},
-      {"id":"s6","title":"PHỤ LỤC","level":1,"parentId":"","content":"..."}
+      {"id":"s5","title":"TÀI LIỆU THAM KHẢO","level":1,"parentId":"","content":"..."}
     ]
     
     QUY TẮC PHÂN TÍCH — ĐẦY ĐỦ VÀ CHÍNH XÁC:
@@ -197,24 +227,14 @@ export const parseStructure = async (text: string): Promise<{ id: string, title:
        - Level 1: Phần I, II, III... hoặc CHƯƠNG 1, MỤC LỤC, TÀI LIỆU THAM KHẢO, PHỤ LỤC...
        - Level 2: 1., 2., 3. hoặc 4.1, 4.2...
        - Level 3: 1.1., 2.1., 4.2.1, "Giải pháp 1", "Biện pháp 1", "Bước 1"...
-       - Level 4+: a), b), (i), (ii)... nếu có
     2. PHẢI ĐI SÂU TẬN CÙNG — tách từng giải pháp/biện pháp/bước thành mục riêng.
-    3. ĐẶC BIỆT QUAN TRỌNG: 
-       - "Giải pháp 1/2/3/4/5", "Biện pháp 1/2/3/4/5", "Bước 1/2/3..." → LUÔN tách thành mục con
-       - Mỗi giải pháp/biện pháp phải có NỘI DUNG ĐẦY ĐỦ trong trường "content"
-    4. QUY TẮC VỀ CONTENT:
+    3. QUY TẮC VỀ CONTENT:
        - Mục LÁ (không có mục con): "content" = TOÀN BỘ nội dung. BẮT BUỘC PHẢI CÓ.
        - Mục CHA (có mục con): "content" = phần giới thiệu trước mục con đầu tiên hoặc "".
-    5. Trường "id" phải unique: "s1", "s2", "s2-1", "s2-1-1"...
-    6. "parentId": = "" nếu level 1, = id cha trực tiếp nếu level 2+
-    7. "title" = tiêu đề CHÍNH XÁC như trong văn bản gốc
-    8. TUYỆT ĐỐI KHÔNG bỏ sót. Đọc TỪ ĐẦU ĐẾN CUỐI văn bản.
-    9. PHẢI bao gồm: Mục lục, Đặt vấn đề, Nội dung, Kết luận, Tài liệu tham khảo, Phụ lục, Cam kết (nếu có).
-    
-    ⚠️ KIỂM TRA CUỐI: 
-    - SKKN tiêu chuẩn có 10-30+ mục tổng cộng (bao gồm mục con).
-    - Nếu chỉ tìm được <= 5 mục → BẠN ĐÃ BỎ SÓT, phải rà soát lại TOÀN BỘ văn bản.
-    - Đếm lại số level-1: thường >= 3 phần chính.
+    4. Trường "id" phải unique: "s1", "s2", "s2-1", "s2-1-1"...
+    5. "parentId": = "" nếu level 1, = id cha trực tiếp nếu level 2+
+    6. "title" = tiêu đề CHÍNH XÁC như trong văn bản gốc
+    7. TUYỆT ĐỐI KHÔNG bỏ sót. Đọc TỪ ĐẦU ĐẾN CUỐI văn bản.
     
     VĂN BẢN SKKN:
     """
@@ -222,36 +242,27 @@ export const parseStructure = async (text: string): Promise<{ id: string, title:
     """
   `;
 
-    return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                temperature: 0,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id: { type: Type.STRING },
-                            title: { type: Type.STRING },
-                            level: { type: Type.INTEGER, description: "1=cấp cao nhất, 2=mục con, 3=mục cháu, 4+..." },
-                            parentId: { type: Type.STRING, description: "Empty string for level 1, parent id otherwise" },
-                            content: { type: Type.STRING, description: "Nội dung văn bản thuộc mục này. BẮT BUỘC có cho mục lá." }
-                        }
-                    }
-                }
+    const schema = {
+        type: SchemaType.ARRAY,
+        items: {
+            type: SchemaType.OBJECT,
+            properties: {
+                id: { type: SchemaType.STRING },
+                title: { type: SchemaType.STRING },
+                level: { type: SchemaType.INTEGER, description: "1=cấp cao nhất, 2=mục con, 3=mục cháu" },
+                parentId: { type: SchemaType.STRING, description: "Empty string for level 1" },
+                content: { type: SchemaType.STRING, description: "Nội dung văn bản thuộc mục này" }
             }
-        });
-        if (!response.text) throw new Error("No response from AI");
-        return JSON.parse(response.text);
+        }
+    };
+
+    return callWithFallback(async (model) => {
+        return await generateJSON(model, prompt, schema, 0);
     });
 };
 
 // --- Title Suggestions ---
 export const generateTitleSuggestions = async (currentTitle: string, contentSummary: string): Promise<TitleSuggestion[]> => {
-    const ai = getAI();
     const prompt = `
     Bạn là chuyên gia đặt tên đề tài SKKN. Tên đề tài cũ: "${currentTitle}"
     
@@ -267,30 +278,23 @@ export const generateTitleSuggestions = async (currentTitle: string, contentSumm
     Nội dung sơ lược: ${contentSummary.substring(0, 3000)}
   `;
 
-    return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id: { type: Type.INTEGER },
-                            title: { type: Type.STRING },
-                            noveltyPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            overlapPercentage: { type: Type.NUMBER, description: "Estimated overlap 0-100" },
-                            feasibility: { type: Type.STRING, description: "Cao/Trung bình/Thấp" },
-                            score: { type: Type.NUMBER, description: "Overall score out of 10" }
-                        }
-                    }
-                }
+    const schema = {
+        type: SchemaType.ARRAY,
+        items: {
+            type: SchemaType.OBJECT,
+            properties: {
+                id: { type: SchemaType.INTEGER },
+                title: { type: SchemaType.STRING },
+                noveltyPoints: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                overlapPercentage: { type: SchemaType.NUMBER, description: "Estimated overlap 0-100" },
+                feasibility: { type: SchemaType.STRING, description: "Cao/Trung bình/Thấp" },
+                score: { type: SchemaType.NUMBER, description: "Overall score out of 10" }
             }
-        });
-        if (!response.text) throw new Error("No response from AI");
-        return JSON.parse(response.text);
+        }
+    };
+
+    return callWithFallback(async (model) => {
+        return await generateJSON(model, prompt, schema);
     });
 };
 
@@ -300,8 +304,6 @@ export const generateSectionSuggestions = async (
     originalContent: string,
     contextTitle: string
 ): Promise<SectionSuggestion[]> => {
-    const ai = getAI();
-
     const prompt = `
     Bạn là chuyên gia thẩm định SKKN. Hãy phân tích phần "${sectionName}" và đưa ra các GỢI Ý SỬA cụ thể.
     
@@ -320,30 +322,23 @@ export const generateSectionSuggestions = async (
     "${originalContent}"
   `;
 
-    return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id: { type: Type.STRING },
-                            type: { type: Type.STRING, description: "One of: scientific, creativity, novelty, plagiarism" },
-                            label: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            originalText: { type: Type.STRING, description: "Exact quote from original to fix" },
-                            suggestedText: { type: Type.STRING, description: "Suggested replacement" }
-                        }
-                    }
-                }
+    const schema = {
+        type: SchemaType.ARRAY,
+        items: {
+            type: SchemaType.OBJECT,
+            properties: {
+                id: { type: SchemaType.STRING },
+                type: { type: SchemaType.STRING, description: "One of: scientific, creativity, novelty, plagiarism" },
+                label: { type: SchemaType.STRING },
+                description: { type: SchemaType.STRING },
+                originalText: { type: SchemaType.STRING, description: "Exact quote from original to fix" },
+                suggestedText: { type: SchemaType.STRING, description: "Suggested replacement" }
             }
-        });
-        if (!response.text) throw new Error("No response from AI");
-        return JSON.parse(response.text);
+        }
+    };
+
+    return callWithFallback(async (model) => {
+        return await generateJSON(model, prompt, schema);
     });
 };
 
@@ -353,7 +348,6 @@ export const refineSectionContent = async (
     originalContent: string,
     newTitle: string
 ): Promise<string> => {
-    const ai = getAI();
     const knowledgeContext = buildKnowledgeContext(sectionName);
     const needsTable = /kết quả|hiệu quả|thực nghiệm|so sánh|khảo sát/i.test(sectionName);
     const tableInstruction = needsTable ? `
@@ -394,11 +388,7 @@ ${COMPARISON_TABLE_TEMPLATE}
   `;
 
     return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-        });
-        return response.text || "";
+        return await generateText(model, prompt);
     });
 };
 
@@ -411,38 +401,32 @@ const NATURAL_WRITING_GUIDE = `
 1. KHOA HỌC VỀ CẤU TRÚC, CÁ NHÂN VỀ NỘI DUNG:
    - Giữ nguyên khung cấu trúc chuẩn SKKN
    - Nhưng mỗi phần đều có chi tiết riêng (tên, số liệu, thời gian, địa điểm)
-   - Cân bằng: không quá khô khan (giống sách giáo khoa) và không quá tự nhiên (mất tính khoa học)
+   - Cân bằng: không quá khô khan và không quá tự nhiên
 
 2. SỐ LIỆU CỤ THỂ, KHÔNG LÀM TRÒN:
    - Dùng số lẻ: 31/45 em (68,9%) thay vì 70%
    - Có nguồn gốc: khảo sát ngày X, kiểm tra ngày Y
-   - Ghi rõ thời gian, phương pháp thu thập dữ liệu
 
 3. PARAPHRASE LÝ THUYẾT, TÍCH HỢP THỰC TIỄN:
    - KHÔNG trích nguyên văn dài (> 1 câu)
    - Kết hợp định nghĩa với ví dụ cụ thể ngay lập tức
-   - Ghi rõ tên tác giả + năm khi viện dẫn
 
 4. XEN KẼ QUAN SÁT CÁ NHÂN VỚI SỐ LIỆU:
    - Kết hợp số liệu khoa học với quan sát chủ quan
    - Trích dẫn lời học sinh để tạo tính chân thực
-   - Kể lại quá trình thực tế: khó khăn, cách giải quyết
 
 5. THỪA NHẬN HẠN CHẾ, PHÂN TÍCH NGUYÊN NHÂN:
    - Tạo tính khách quan
-   - Không chỉ liệt kê kết quả, phải phân tích tại sao
    - Nêu hạn chế trước, rồi đến hướng phát triển
 
 6. TRÁNH ĐẠO VĂN:
    - KHÔNG mở đầu bằng "Trong bối cảnh đổi mới giáo dục hiện nay..."
    - KHÔNG dùng các câu sáo rỗng phổ biến
    - MỌI đoạn văn phải có ít nhất 1 yếu tố riêng biệt
-   - Không có 3 câu liên tiếp có cấu trúc giống nhau
 
 7. KỸ THUẬT VIẾT CỤ THỂ:
    - Độ dài câu trung bình: 15-25 từ
    - Mật độ thuật ngữ chuyên môn: 3-5%
-   - Thuật ngữ chuyên môn giải thích qua ví dụ thực tế ngay sau khi đưa ra
    - Dùng "Thứ nhất", "Thứ hai"... thay vì bullet point khi phân tích
 `;
 
@@ -458,8 +442,6 @@ export const deepAnalyzeSection = async (
     },
     userRequirements: UserRequirements
 ): Promise<SectionEditSuggestion[]> => {
-    const ai = getAI();
-
     const refDocsContext = userRequirements.referenceDocuments.length > 0
         ? `\n\nTÀI LIỆU THAM KHẢO DO NGƯỜI DÙNG CUNG CẤP:\n${userRequirements.referenceDocuments.map((d, i) =>
             `--- Tài liệu ${i + 1}: "${d.name}" (${d.type === 'exercise' ? 'Bài tập/Đề thi' : 'Tài liệu'}) ---\n${d.content.substring(0, 3000)}\n`
@@ -495,22 +477,20 @@ QUY TẮC PHÂN TÍCH:
 2. Đề xuất sửa phải CỤ THỂ: chỉ rõ đoạn nào cần sửa, sửa thành gì
 3. Mỗi đề xuất có action rõ ràng:
    - "replace": thay thế đoạn cũ bằng đoạn mới
-   - "add": thêm nội dung mới (suggestedText chứa nội dung thêm)
-   - "remove": xóa đoạn không cần thiết (originalText chứa đoạn cần xóa)
-   - "modify": chỉnh sửa nhẹ (cả originalText và suggestedText)
+   - "add": thêm nội dung mới
+   - "remove": xóa đoạn không cần thiết
+   - "modify": chỉnh sửa nhẹ
 4. Category cho mỗi đề xuất:
    - "content": nội dung thiếu/thừa/sai
    - "example": ví dụ minh họa cần thêm/thay đổi
    - "structure": cấu trúc cần điều chỉnh
-   - "language": ngôn ngữ/diễn đạt cần sửa (giọng máy móc, sáo rỗng)
+   - "language": ngôn ngữ/diễn đạt cần sửa
    - "reference": cần thay bằng ví dụ từ tài liệu tham khảo
 5. ĐẶC BIỆT QUAN TRỌNG về GIỌNG VĂN:
    - Phát hiện và đề xuất sửa những chỗ giọng văn MÁY MÓC, KHUÔN MẪU
-   - Đề xuất cách viết TỰ NHIÊN hơn, có trải nghiệm cá nhân
-   - Xen kẽ số liệu với quan sát thực tế, lời học sinh...
+   - Đề xuất cách viết TỰ NHIÊN hơn
 ${userRequirements.referenceDocuments.length > 0 ? `
-6. NẾU có tài liệu tham khảo: đề xuất thay thế ví dụ cũ bằng ví dụ CHÍNH XÁC từ tài liệu. 
-   Trích nguyên văn bài tập/ví dụ từ tài liệu tham khảo, category = "reference".` : ''}
+6. NẾU có tài liệu tham khảo: đề xuất thay thế ví dụ cũ bằng ví dụ CHÍNH XÁC từ tài liệu.` : ''}
 
 Đưa ra 4-8 đề xuất sửa QUAN TRỌNG NHẤT, sắp xếp theo mức ưu tiên.
 
@@ -520,32 +500,24 @@ ${sectionContent.substring(0, 8000)}
 """
   `;
 
-    return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                temperature: 0.2,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id: { type: Type.STRING },
-                            action: { type: Type.STRING, description: "One of: replace, add, remove, modify" },
-                            label: { type: Type.STRING, description: "Tóm tắt ngắn gọn đề xuất" },
-                            description: { type: Type.STRING, description: "Giải thích chi tiết tại sao cần sửa" },
-                            originalText: { type: Type.STRING, description: "Đoạn gốc cần sửa (trích chính xác). Để rỗng nếu action=add" },
-                            suggestedText: { type: Type.STRING, description: "Đoạn thay thế/thêm mới. Để rỗng nếu action=remove" },
-                            category: { type: Type.STRING, description: "One of: content, example, structure, language, reference" }
-                        }
-                    }
-                }
+    const schema = {
+        type: SchemaType.ARRAY,
+        items: {
+            type: SchemaType.OBJECT,
+            properties: {
+                id: { type: SchemaType.STRING },
+                action: { type: SchemaType.STRING, description: "One of: replace, add, remove, modify" },
+                label: { type: SchemaType.STRING, description: "Tóm tắt ngắn gọn đề xuất" },
+                description: { type: SchemaType.STRING, description: "Giải thích chi tiết tại sao cần sửa" },
+                originalText: { type: SchemaType.STRING, description: "Đoạn gốc cần sửa. Để rỗng nếu action=add" },
+                suggestedText: { type: SchemaType.STRING, description: "Đoạn thay thế. Để rỗng nếu action=remove" },
+                category: { type: SchemaType.STRING, description: "One of: content, example, structure, language, reference" }
             }
-        });
-        if (!response.text) throw new Error("No response from AI");
-        const parsed = JSON.parse(response.text);
+        }
+    };
+
+    return callWithFallback(async (model) => {
+        const parsed = await generateJSON(model, prompt, schema, 0.2);
         return parsed.map((s: any) => ({ ...s, applied: false }));
     });
 };
@@ -557,7 +529,6 @@ export const refineSectionWithReferences = async (
     newTitle: string,
     userRequirements: UserRequirements
 ): Promise<string> => {
-    const ai = getAI();
     const knowledgeContext = buildKnowledgeContext(sectionName);
     const needsTable = /kết quả|hiệu quả|thực nghiệm|so sánh|khảo sát/i.test(sectionName);
     const tableInstruction = needsTable ? `\n- Nếu có số liệu trước/sau, trình bày BẢNG SO SÁNH:\n${COMPARISON_TABLE_TEMPLATE}` : '';
@@ -565,7 +536,7 @@ export const refineSectionWithReferences = async (
     const refDocsContext = userRequirements.referenceDocuments.length > 0
         ? `\n\n===== TÀI LIỆU THAM KHẢO =====\n${userRequirements.referenceDocuments.map((d, i) =>
             `--- ${d.type === 'exercise' ? 'BÀI TẬP' : 'TÀI LIỆU'} ${i + 1}: "${d.name}" ---\n${d.content.substring(0, 4000)}\n`
-        ).join('\n')}\n\nYÊU CẦU ĐẶC BIỆT VỀ TÀI LIỆU THAM KHẢO:\n- PHẢI lấy ví dụ minh họa CHÍNH XÁC từ tài liệu tham khảo ở trên\n- Thay thế các ví dụ chung chung trong SKKN cũ bằng ví dụ cụ thể từ tài liệu\n- Trích nguyên văn đề bài, bài tập từ tài liệu (không tự sáng tạo)\n- Nếu tài liệu có bài tập → sử dụng làm ví dụ minh họa cho giải pháp\n=============================`
+        ).join('\n')}\n\nYÊU CẦU ĐẶC BIỆT VỀ TÀI LIỆU THAM KHẢO:\n- PHẢI lấy ví dụ minh họa CHÍNH XÁC từ tài liệu tham khảo ở trên\n- Thay thế các ví dụ chung chung trong SKKN cũ bằng ví dụ cụ thể từ tài liệu\n- Trích nguyên văn đề bài, bài tập từ tài liệu (không tự sáng tạo)\n=============================`
         : '';
 
     const pageLimitContext = userRequirements.pageLimit
@@ -589,16 +560,15 @@ ${pageLimitContext}
 ${customContext}
 
 NGUYÊN TẮC BẤT DI BẤT DỊCH:
-1. GIỮ NGUYÊN tất cả số liệu thực tế (%, số lượng, điểm số, năm học).
-2. GIỮ NGUYÊN tên riêng (trường, lớp, địa danh, tên người).
-3. THAY ĐỔI cách diễn đạt: ngôn ngữ học thuật nhưng TỰ NHIÊN, có trải nghiệm cá nhân.
-4. LOẠI BỎ tất cả câu sáo rỗng. Dẫn dắt trực tiếp, cụ thể.
+1. GIỮ NGUYÊN tất cả số liệu thực tế.
+2. GIỮ NGUYÊN tên riêng.
+3. THAY ĐỔI cách diễn đạt: ngôn ngữ học thuật nhưng TỰ NHIÊN.
+4. LOẠI BỎ tất cả câu sáo rỗng.
 5. XEN KẼ quan sát cá nhân vào giữa số liệu khoa học.
 6. SỬ DỤNG số liệu lẻ (31/45 = 68,9%), không làm tròn.
-7. TRÁNH giọng văn máy móc, khuôn mẫu. Viết như một giáo viên ĐAM MÊ kể lại quá trình thực tế.
+7. TRÁNH giọng văn máy móc.
 8. GIỮ NGUYÊN mọi công thức toán học — viết dưới dạng LaTeX.
-9. KHÔNG được bỏ, thay đổi, hay viết lại bất kỳ công thức toán nào.
-10. Nếu có tài liệu tham khảo → LẤY VÍ DỤ CHÍNH XÁC từ đó, không tự bịa.
+9. Nếu có tài liệu tham khảo → LẤY VÍ DỤ CHÍNH XÁC từ đó.
 ${tableInstruction}
 
 Nội dung gốc:
@@ -608,11 +578,7 @@ Trả về nội dung đã sửa. Định dạng đẹp, chuẩn. Bảng biểu 
   `;
 
     return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-        });
-        return response.text || "";
+        return await generateText(model, prompt);
     });
 };
 
@@ -630,7 +596,6 @@ export const refineSectionWithAnalysis = async (
         overallAnalysisSummary: string;
     }
 ): Promise<string> => {
-    const ai = getAI();
     const knowledgeContext = buildKnowledgeContext(sectionName);
     const needsTable = /kết quả|hiệu quả|thực nghiệm|so sánh|khảo sát/i.test(sectionName);
     const tableInstruction = needsTable ? `\n- Nếu có số liệu trước/sau, trình bày BẢNG SO SÁNH:\n${COMPARISON_TABLE_TEMPLATE}` : '';
@@ -652,7 +617,7 @@ ${editSuggestions.map((s, i) => {
     const refDocsContext = userRequirements.referenceDocuments.length > 0
         ? `\n\n===== TÀI LIỆU THAM KHẢO =====\n${userRequirements.referenceDocuments.map((d, i) =>
             `--- ${d.type === 'exercise' ? 'BÀI TẬP' : 'TÀI LIỆU'} ${i + 1}: "${d.name}" ---\n${d.content.substring(0, 4000)}\n`
-        ).join('\n')}\n\nYÊU CẦU VỀ TÀI LIỆU THAM KHẢO:\n- PHẢI lấy ví dụ minh họa CHÍNH XÁC từ tài liệu tham khảo\n- Thay thế các ví dụ chung chung bằng ví dụ cụ thể từ tài liệu\n- Trích nguyên văn đề bài, bài tập từ tài liệu (không tự sáng tạo)\n=============================`
+        ).join('\n')}\n\nYÊU CẦU VỀ TÀI LIỆU THAM KHẢO:\n- PHẢI lấy ví dụ minh họa CHÍNH XÁC từ tài liệu tham khảo\n- Thay thế các ví dụ chung chung bằng ví dụ cụ thể từ tài liệu\n=============================`
         : '';
 
     const pageLimitContext = userRequirements.pageLimit
@@ -688,7 +653,7 @@ NGUYÊN TẮC VIẾT LẠI:
 3. Ngôn ngữ học thuật nhưng TỰ NHIÊN, có trải nghiệm cá nhân.
 4. LOẠI BỎ câu sáo rỗng. Dẫn dắt trực tiếp, cụ thể.
 5. XEN KẼ quan sát cá nhân vào giữa số liệu khoa học.
-6. TRÁNH giọng văn máy móc. Viết như giáo viên ĐAM MÊ kể lại quá trình thực tế.
+6. TRÁNH giọng văn máy móc.
 7. GIỮ NGUYÊN công thức toán học (LaTeX).
 8. Nếu có tài liệu tham khảo → LẤY VÍ DỤ CHÍNH XÁC từ đó.
 ${tableInstruction}
@@ -700,11 +665,7 @@ Trả về nội dung đã sửa hoàn chỉnh. Định dạng đẹp, chuẩn. 
   `;
 
     return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-        });
-        return response.text || "";
+        return await generateText(model, prompt);
     });
 };
 
@@ -745,8 +706,6 @@ async function shortenOneSection(
     _originalTotalChars: number,
     _targetTotalPages: number
 ): Promise<string> {
-    const ai = getAI();
-
     const prompt = `
 Bạn là chuyên gia biên tập SKKN. Nhiệm vụ: VIẾT LẠI phần "${sectionTitle}" của SKKN cho ngắn gọn hơn.
 
@@ -772,15 +731,16 @@ ${sectionContent}
 `;
 
     return callWithFallback(async (model) => {
-        const response = await ai.models.generateContent({
+        const genAI = getGenAI();
+        const genModel = genAI.getGenerativeModel({
             model,
-            contents: prompt,
-            config: {
+            generationConfig: {
                 temperature: 0.2,
                 maxOutputTokens: 16384,
-            },
+            }
         });
-        return response.text || "";
+        const result = await genModel.generateContent(prompt);
+        return result.response.text() || "";
     });
 }
 
