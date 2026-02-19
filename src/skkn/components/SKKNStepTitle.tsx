@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { TitleSuggestion } from '../skknTypes';
-import { Sparkles, ArrowRight, Lightbulb, AlertCircle, Loader2, Trophy, Target } from 'lucide-react';
+import type { TitleSuggestion } from '../skknTypes';
+import { Sparkles, ArrowRight, Lightbulb, AlertCircle, Trophy, Target } from 'lucide-react';
 
 interface StepTitleProps {
     currentTitle: string;

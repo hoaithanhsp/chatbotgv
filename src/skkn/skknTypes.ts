@@ -1,10 +1,12 @@
-export enum AppStep {
-    UPLOAD = 0,
-    ANALYZING = 1,
-    DASHBOARD = 2,
-    TITLE_SELECTION = 3,
-    CONTENT_REFINEMENT = 4,
-}
+export const AppStep = {
+    UPLOAD: 0,
+    ANALYZING: 1,
+    DASHBOARD: 2,
+    TITLE_SELECTION: 3,
+    CONTENT_REFINEMENT: 4,
+} as const;
+
+export type AppStep = typeof AppStep[keyof typeof AppStep];
 
 export interface AnalysisMetrics {
     plagiarismScore: number;

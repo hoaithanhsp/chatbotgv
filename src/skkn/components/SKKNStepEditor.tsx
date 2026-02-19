@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { SectionContent, SectionEditSuggestion, UserRequirements, ReferenceDocument } from '../skknTypes';
-import { SUGGESTION_TYPES } from '../skknConstants';
-import { Check, Loader2, RefreshCw, FileDown, Sparkles, ChevronDown, ChevronUp, Download, Search, Plus, Minus, Pencil, Replace, CheckCircle2, Upload, ClipboardPaste, BookOpen, ArrowRight, FileText, Trash2 } from 'lucide-react';
+import type { SectionContent, UserRequirements, ReferenceDocument } from '../skknTypes';
+import { Check, Loader2, RefreshCw, Sparkles, ChevronDown, ChevronUp, Download, Search, Plus, Minus, Pencil, Replace, CheckCircle2, Upload, ClipboardPaste, BookOpen, Trash2 } from 'lucide-react';
 import * as geminiService from '../services/skknGeminiService';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
@@ -36,10 +35,12 @@ const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
 };
 
 const SKKNStepEditor: React.FC<StepEditorProps> = ({
-    sections, onRefineSection, onRefineSectionWithRefs, onFinish, isProcessing,
+    sections, onRefineSection: _onRefineSection, onRefineSectionWithRefs: _onRefineSectionWithRefs, onFinish, isProcessing,
     selectedTitle, currentTitle, overallAnalysisSummary,
     onUpdateSections, userRequirements, onUpdateRequirements
 }) => {
+    void _onRefineSection;
+    void _onRefineSectionWithRefs;
     const [activeTab, setActiveTab] = useState<string>(sections[0]?.id || '');
     const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
     const [loadingDeepAnalysis, setLoadingDeepAnalysis] = useState<string | null>(null);
@@ -803,7 +804,7 @@ const SKKNStepEditor: React.FC<StepEditorProps> = ({
                     boxShadow: '0 4px 0 #b45309, 0 8px 24px rgba(245, 158, 11, 0.3)',
                     transition: 'all 0.2s'
                 }}>
-                    <FileDown size={18} />
+                    <Download size={18} />
                     Hoàn tất & Xuất toàn bộ SKKN
                 </button>
             </div>

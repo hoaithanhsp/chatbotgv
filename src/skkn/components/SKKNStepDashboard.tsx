@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SectionContent, AnalysisMetrics } from '../skknTypes';
+import type { SectionContent, AnalysisMetrics } from '../skknTypes';
 import { ArrowRight, CheckCircle2, AlertTriangle, XCircle, Lightbulb, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface StepDashboardProps {

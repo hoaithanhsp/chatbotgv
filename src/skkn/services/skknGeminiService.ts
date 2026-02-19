@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AI_MODELS, AIModelId } from "../skknTypes";
+import { AI_MODELS } from "../skknTypes";
+import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AIModelId } from "../skknTypes";
 import { buildKnowledgeContext, SCORING_CRITERIA, CLICHE_PHRASES, COMPARISON_TABLE_TEMPLATE } from "../knowledge-base";
 
 // --- API Key & Model Management ---
@@ -741,8 +742,8 @@ async function shortenOneSection(
     sectionContent: string,
     sectionTitle: string,
     targetChars: number,
-    originalTotalChars: number,
-    targetTotalPages: number
+    _originalTotalChars: number,
+    _targetTotalPages: number
 ): Promise<string> {
     const ai = getAI();
 

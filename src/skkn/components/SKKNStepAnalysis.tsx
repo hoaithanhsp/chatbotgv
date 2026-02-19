@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnalysisMetrics } from '../skknTypes';
+import type { AnalysisMetrics } from '../skknTypes';
 import { CheckCircle2, XCircle, AlertTriangle, ShieldCheck, Search, Globe, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 
