@@ -9,7 +9,7 @@ import SKKNStepDashboard from './components/SKKNStepDashboard';
 import SKKNStepTitle from './components/SKKNStepTitle';
 import SKKNStepEditor from './components/SKKNStepEditor';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 
 interface SKKNEditorAppProps {
@@ -109,6 +109,127 @@ const parseSectionsLocal = (text: string): SectionContent[] => {
     }
 
     return sections;
+};
+
+// --- Helper: Parse markdown table into docx Table ---
+const parseContentToDocElements = (content: string, indent: number): (Paragraph | Table)[] => {
+    const elements: (Paragraph | Table)[] = [];
+    const lines = content.split('\n');
+    let i = 0;
+
+    const tableBorder = {
+        style: BorderStyle.SINGLE,
+        size: 1,
+        color: '000000',
+    };
+    const borders = {
+        top: tableBorder,
+        bottom: tableBorder,
+        left: tableBorder,
+        right: tableBorder,
+        insideHorizontal: tableBorder,
+        insideVertical: tableBorder,
+    };
+
+    while (i < lines.length) {
+        const line = lines[i].trim();
+
+        // Detect markdown table (line starts and ends with |)
+        if (line.startsWith('|') && line.endsWith('|') && line.includes('|')) {
+            // Collect all table lines
+            const tableLines: string[] = [];
+            while (i < lines.length) {
+                const tl = lines[i].trim();
+                if (tl.startsWith('|') && tl.endsWith('|')) {
+                    tableLines.push(tl);
+                    i++;
+                } else {
+                    break;
+                }
+            }
+
+            // Filter out separator rows (|---|---|)
+            const dataRows = tableLines.filter(row => !/^\|[\s\-:|]+\|$/.test(row));
+            if (dataRows.length > 0) {
+                const parsedRows = dataRows.map(row =>
+                    row.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(cell => cell.trim())
+                );
+
+                const maxCols = Math.max(...parsedRows.map(r => r.length));
+
+                const docRows = parsedRows.map((cells, rowIdx) => {
+                    const isHeader = rowIdx === 0;
+                    const tableCells = [];
+                    for (let c = 0; c < maxCols; c++) {
+                        const cellText = cells[c] || '';
+                        tableCells.push(
+                            new TableCell({
+                                children: [
+                                    new Paragraph({
+                                        children: [
+                                            new TextRun({
+                                                text: cellText,
+                                                bold: isHeader,
+                                                size: 24,
+                                                font: 'Times New Roman',
+                                            }),
+                                        ],
+                                        spacing: { before: 40, after: 40 },
+                                        alignment: AlignmentType.CENTER,
+                                    }),
+                                ],
+                                width: { size: Math.floor(9000 / maxCols), type: WidthType.DXA },
+                                borders,
+                            })
+                        );
+                    }
+                    return new TableRow({ children: tableCells });
+                });
+
+                elements.push(
+                    new Table({
+                        rows: docRows,
+                        width: { size: 9000, type: WidthType.DXA },
+                    })
+                );
+                // Add spacing after table
+                elements.push(new Paragraph({ spacing: { after: 100 } }));
+            }
+            continue;
+        }
+
+        // Normal paragraph
+        if (line) {
+            // Handle bold markdown: **text**
+            const runs: TextRun[] = [];
+            const boldRegex = /\*\*(.+?)\*\*/g;
+            let lastIdx = 0;
+            let match;
+            while ((match = boldRegex.exec(line)) !== null) {
+                if (match.index > lastIdx) {
+                    runs.push(new TextRun({ text: line.substring(lastIdx, match.index), size: 26, font: 'Times New Roman' }));
+                }
+                runs.push(new TextRun({ text: match[1], bold: true, size: 26, font: 'Times New Roman' }));
+                lastIdx = match.index + match[0].length;
+            }
+            if (lastIdx < line.length) {
+                runs.push(new TextRun({ text: line.substring(lastIdx), size: 26, font: 'Times New Roman' }));
+            }
+            if (runs.length === 0) {
+                runs.push(new TextRun({ text: line, size: 26, font: 'Times New Roman' }));
+            }
+
+            elements.push(new Paragraph({
+                children: runs,
+                spacing: { after: 100 },
+                indent: { firstLine: 720, left: indent }
+            }));
+        }
+
+        i++;
+    }
+
+    return elements;
 };
 
 const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
@@ -324,7 +445,7 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
 
     const handleFinish = async () => {
         try {
-            const docChildren: Paragraph[] = [];
+            const docChildren: (Paragraph | Table)[] = [];
             docChildren.push(new Paragraph({
                 children: [new TextRun({
                     text: `TÊN ĐỀ TÀI: ${data.selectedNewTitle?.title || data.currentTitle}`,
@@ -349,13 +470,8 @@ const SKKNEditorApp: React.FC<SKKNEditorAppProps> = ({ onClose }) => {
                 }));
 
                 const content = s.refinedContent || s.originalContent;
-                content.split('\n').filter(p => p.trim()).forEach(para => {
-                    docChildren.push(new Paragraph({
-                        children: [new TextRun({ text: para.trim(), size: 26, font: 'Times New Roman' })],
-                        spacing: { after: 100 },
-                        indent: { firstLine: 720, left: indent }
-                    }));
-                });
+                const contentElements = parseContentToDocElements(content, indent);
+                docChildren.push(...contentElements);
             });
 
             const doc = new Document({ sections: [{ children: docChildren }] });
