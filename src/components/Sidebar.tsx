@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen, Pin } from 'lucide-react';
+import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen, Pin, FileText } from 'lucide-react';
 import type { TeacherProfile, ChatSession } from '../types';
 import { getChatFolders, addChatFolder } from '../services/chatStorage';
 
@@ -28,6 +28,7 @@ interface SidebarProps {
     onSearchChange: (query: string) => void;
     onShowBookmarks: () => void;
     onShowDashboard?: () => void;
+    onShowSKKNEditor?: () => void;
     folderFilter: string | null;
     onFolderFilterChange: (folder: string | null) => void;
     onMoveToFolder?: (chatId: string, folder: string) => void;
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSearchChange,
     onShowBookmarks,
     onShowDashboard,
+    onShowSKKNEditor,
     folderFilter,
     onFolderFilterChange,
     onMoveToFolder,
@@ -326,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Footer Nav */}
             <div className="p-4 border-t border-teal-50/50 bg-slate-50/50 backdrop-blur-sm">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                     <button
                         onClick={onOpenSettings}
                         className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-teal-600 hover:shadow-sm border border-transparent hover:border-teal-100 group"
@@ -347,6 +349,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                         <BarChart3 size={18} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
                         <span className="text-[10px] font-semibold">Thống kê</span>
+                    </button>
+                    <button
+                        onClick={onShowSKKNEditor}
+                        className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-rose-600 hover:shadow-sm border border-transparent hover:border-rose-100 group"
+                    >
+                        <FileText size={18} className="text-slate-400 group-hover:text-rose-500 transition-colors" />
+                        <span className="text-[10px] font-semibold">SKKN</span>
                     </button>
                 </div>
             </div>
