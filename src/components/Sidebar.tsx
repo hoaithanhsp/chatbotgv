@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen, Pin, FileText } from 'lucide-react';
+import { Plus, MessageCircle, Trash2, BookOpen, Bookmark, Settings, User, Search, Pencil, Check, X, BarChart3, FolderOpen, Pin, FileText, Brain } from 'lucide-react';
 import type { TeacherProfile, ChatSession } from '../types';
 import { getChatFolders, addChatFolder } from '../services/chatStorage';
 
@@ -33,6 +33,7 @@ interface SidebarProps {
     onFolderFilterChange: (folder: string | null) => void;
     onMoveToFolder?: (chatId: string, folder: string) => void;
     onTogglePin?: (chatId: string) => void;
+    onShowPreferences?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onFolderFilterChange,
     onMoveToFolder,
     onTogglePin,
+    onShowPreferences,
 }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -328,34 +330,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Footer Nav */}
             <div className="p-4 border-t border-teal-50/50 bg-slate-50/50 backdrop-blur-sm">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-1.5">
                     <button
                         onClick={onOpenSettings}
-                        className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-teal-600 hover:shadow-sm border border-transparent hover:border-teal-100 group"
+                        className="flex flex-col items-center justify-center p-2 hover:bg-white rounded-xl gap-0.5 transition-all text-slate-500 hover:text-teal-600 hover:shadow-sm border border-transparent hover:border-teal-100 group"
                     >
-                        <BookOpen size={18} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
-                        <span className="text-[10px] font-semibold">Thư viện</span>
+                        <BookOpen size={16} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
+                        <span className="text-[9px] font-semibold">Thư viện</span>
                     </button>
                     <button
                         onClick={onShowBookmarks}
-                        className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-cyan-600 hover:shadow-sm border border-transparent hover:border-cyan-100 group"
+                        className="flex flex-col items-center justify-center p-2 hover:bg-white rounded-xl gap-0.5 transition-all text-slate-500 hover:text-cyan-600 hover:shadow-sm border border-transparent hover:border-cyan-100 group"
                     >
-                        <Bookmark size={18} className="text-slate-400 group-hover:text-cyan-500 transition-colors" />
-                        <span className="text-[10px] font-semibold">Đã lưu</span>
+                        <Bookmark size={16} className="text-slate-400 group-hover:text-cyan-500 transition-colors" />
+                        <span className="text-[9px] font-semibold">Đã lưu</span>
+                    </button>
+                    <button
+                        onClick={onShowPreferences}
+                        className="flex flex-col items-center justify-center p-2 hover:bg-white rounded-xl gap-0.5 transition-all text-slate-500 hover:text-purple-600 hover:shadow-sm border border-transparent hover:border-purple-100 group"
+                    >
+                        <Brain size={16} className="text-slate-400 group-hover:text-purple-500 transition-colors" />
+                        <span className="text-[9px] font-semibold">Sở thích</span>
                     </button>
                     <button
                         onClick={onShowDashboard}
-                        className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-amber-600 hover:shadow-sm border border-transparent hover:border-amber-100 group"
+                        className="flex flex-col items-center justify-center p-2 hover:bg-white rounded-xl gap-0.5 transition-all text-slate-500 hover:text-amber-600 hover:shadow-sm border border-transparent hover:border-amber-100 group"
                     >
-                        <BarChart3 size={18} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
-                        <span className="text-[10px] font-semibold">Thống kê</span>
+                        <BarChart3 size={16} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
+                        <span className="text-[9px] font-semibold">Thống kê</span>
                     </button>
                     <button
                         onClick={onShowSKKNEditor}
-                        className="flex flex-col items-center justify-center p-2.5 hover:bg-white rounded-xl gap-1 transition-all text-slate-500 hover:text-rose-600 hover:shadow-sm border border-transparent hover:border-rose-100 group"
+                        className="flex flex-col items-center justify-center p-2 hover:bg-white rounded-xl gap-0.5 transition-all text-slate-500 hover:text-rose-600 hover:shadow-sm border border-transparent hover:border-rose-100 group"
                     >
-                        <FileText size={18} className="text-slate-400 group-hover:text-rose-500 transition-colors" />
-                        <span className="text-[10px] font-semibold">SKKN</span>
+                        <FileText size={16} className="text-slate-400 group-hover:text-rose-500 transition-colors" />
+                        <span className="text-[9px] font-semibold">SKKN</span>
                     </button>
                 </div>
             </div>

@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, MessageCircle, FileText, Clock, Tag, BarChart3, TrendingUp } from 'lucide-react';
+import { X, MessageCircle, FileText, Tag, BarChart3, TrendingUp, Brain, Sparkles, ThumbsUp } from 'lucide-react';
 import { getDashboardStats, type DashboardStats } from '../services/chatStorage';
+import { getPersonalizationScore, getStyleProfile } from '../services/teacherPreferences';
+import { getSessionAnalytics, getLearnedInsights } from '../services/sessionTracker';
 
 interface DashboardModalProps {
     isOpen: boolean;
@@ -22,9 +24,21 @@ const TAG_COLORS: Record<string, string> = {
 
 export const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose }) => {
     const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [personalizationScore, setPersonalizationScore] = useState(0);
+    const [learnedInsights, setLearnedInsights] = useState<string[]>([]);
+    const [profileInsights, setProfileInsights] = useState<{ key: string; label: string; confidence: number }[]>([]);
+    const [feedbackStats, setFeedbackStats] = useState({ totalLikes: 0, totalDislikes: 0, satisfactionRate: 100 });
 
     useEffect(() => {
-        if (isOpen) setStats(getDashboardStats());
+        if (isOpen) {
+            setStats(getDashboardStats());
+            setPersonalizationScore(getPersonalizationScore());
+            setLearnedInsights(getLearnedInsights());
+            const profile = getStyleProfile();
+            setProfileInsights(profile.learnedInsights.map(i => ({ key: i.key, label: i.label, confidence: i.confidence })));
+            const analytics = getSessionAnalytics();
+            setFeedbackStats(analytics.feedbackStats);
+        }
     }, [isOpen]);
 
     if (!isOpen || !stats) return null;
@@ -54,6 +68,55 @@ export const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose 
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    {/* Personalization Score */}
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-4 text-white">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={18} />
+                                <span className="font-semibold text-sm">Độ cá nhân hóa</span>
+                            </div>
+                            <span className="text-2xl font-bold">{personalizationScore}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-white/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${personalizationScore}%` }} />
+                        </div>
+                        <p className="text-xs opacity-80 mt-2">
+                            {personalizationScore < 30 ? '🌱 Chatbot đang bắt đầu học về bạn...' :
+                                personalizationScore < 60 ? '📈 Chatbot đã hiểu một phần phong cách của bạn' :
+                                    personalizationScore < 80 ? '🎯 Chatbot khá hiểu bạn rồi!' :
+                                        '🏆 Chatbot hiểu rất rõ phong cách của bạn!'}
+                        </p>
+                    </div>
+
+                    {/* Chatbot đã học được */}
+                    {(profileInsights.length > 0 || learnedInsights.length > 0) && (
+                        <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                            <h3 className="text-sm font-bold text-purple-700 mb-3 flex items-center gap-2">
+                                <Brain size={14} /> Chatbot đã học được về bạn
+                            </h3>
+                            <div className="space-y-2">
+                                {profileInsights.map(insight => (
+                                    <div key={insight.key} className="flex items-start gap-2">
+                                        <span className="text-emerald-500 mt-0.5">✓</span>
+                                        <div className="flex-1">
+                                            <span className="text-xs text-gray-700">{insight.label}</span>
+                                            <div className="w-full h-1 bg-purple-200 rounded-full mt-1 overflow-hidden">
+                                                <div className="h-full bg-purple-400 rounded-full" style={{ width: `${insight.confidence * 100}%` }} />
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-purple-500 font-medium">{Math.round(insight.confidence * 100)}%</span>
+                                    </div>
+                                ))}
+                                {learnedInsights.map((insight, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <span className="text-sm">{insight.split(' ')[0]}</span>
+                                        <span className="text-xs text-gray-600">{insight.substring(insight.indexOf(' ') + 1)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Stats Cards */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-100 rounded-xl p-4">
@@ -79,10 +142,10 @@ export const DashboardModal: React.FC<DashboardModalProps> = ({ isOpen, onClose 
                         </div>
                         <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-1">
-                                <Clock size={16} className="text-amber-600" />
-                                <span className="text-xs font-medium text-amber-600">Tiết kiệm</span>
+                                <ThumbsUp size={16} className="text-amber-600" />
+                                <span className="text-xs font-medium text-amber-600">Hài lòng</span>
                             </div>
-                            <p className="text-2xl font-bold text-amber-700">~{stats.estimatedHoursSaved}h</p>
+                            <p className="text-2xl font-bold text-amber-700">{feedbackStats.satisfactionRate}%</p>
                         </div>
                     </div>
 

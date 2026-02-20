@@ -8,18 +8,21 @@ import 'katex/dist/katex.min.css';
 import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star, RefreshCw } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { isBookmarked } from '../services/chatStorage';
+import { getMessageFeedback } from '../services/sessionTracker';
 
 interface MessageBubbleProps {
     message: ChatMessage;
     onBookmark?: (msg: ChatMessage) => void;
     onRegenerate?: (messageId: string) => void;
+    onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmark, onRegenerate }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmark, onRegenerate, onFeedback }) => {
     const isUser = message.role === 'user';
     const [copied, setCopied] = useState(false);
     const [starred, setStarred] = useState(() => isBookmarked(message.id));
     const [activeVersion, setActiveVersion] = useState(-1); // -1 = current
+    const [feedbackState, setFeedbackState] = useState<'like' | 'dislike' | null>(() => message.feedback || getMessageFeedback(message.id));
 
     const allVersions = useMemo(() => {
         const vs = (message.versions || []).map((v, i) => ({ text: v.text, label: `v${i + 1}`, timestamp: v.timestamp }));
@@ -76,8 +79,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                                     key={i}
                                     onClick={() => setActiveVersion(i === allVersions.length - 1 ? -1 : i)}
                                     className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all ${isCurrent
-                                            ? 'bg-teal-600 text-white shadow-sm'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                        ? 'bg-teal-600 text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                         }`}
                                 >
                                     {v.label}
@@ -186,11 +189,33 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
                         )}
                         <div className="flex-1" />
                         <div className="flex gap-1">
-                            <button className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors">
-                                <ThumbsUp size={15} />
+                            <button
+                                onClick={() => {
+                                    const newFb = feedbackState === 'like' ? null : 'like';
+                                    setFeedbackState(newFb as 'like' | 'dislike' | null);
+                                    if (newFb && onFeedback) onFeedback(message.id, 'like');
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${feedbackState === 'like'
+                                    ? 'text-emerald-600 bg-emerald-50 shadow-sm scale-110'
+                                    : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                    }`}
+                                title="Hữu ích"
+                            >
+                                <ThumbsUp size={15} fill={feedbackState === 'like' ? 'currentColor' : 'none'} />
                             </button>
-                            <button className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
-                                <ThumbsDown size={15} />
+                            <button
+                                onClick={() => {
+                                    const newFb = feedbackState === 'dislike' ? null : 'dislike';
+                                    setFeedbackState(newFb as 'like' | 'dislike' | null);
+                                    if (newFb && onFeedback) onFeedback(message.id, 'dislike');
+                                }}
+                                className={`p-1.5 rounded-lg transition-all ${feedbackState === 'dislike'
+                                    ? 'text-rose-600 bg-rose-50 shadow-sm scale-110'
+                                    : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                    }`}
+                                title="Chưa tốt"
+                            >
+                                <ThumbsDown size={15} fill={feedbackState === 'dislike' ? 'currentColor' : 'none'} />
                             </button>
                         </div>
                     </div>

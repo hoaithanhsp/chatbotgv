@@ -5,6 +5,8 @@ export interface TeacherProfile {
     subject: string;
     school_level: string;
     school_name?: string;
+    grade_levels?: number[];
+    specialization?: string;
 }
 
 export interface ChatMessage {
@@ -13,6 +15,7 @@ export interface ChatMessage {
     text: string;
     timestamp: string; // ISO string
     versions?: { text: string; timestamp: string }[];
+    feedback?: 'like' | 'dislike' | null;
 }
 
 export interface ChatSession {
