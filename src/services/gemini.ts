@@ -52,7 +52,7 @@ export const generateResponse = async (history: { role: string; parts: { text: s
             const chat = model.startChat({
                 history: history,
                 generationConfig: {
-                    maxOutputTokens: 4096,
+                    maxOutputTokens: 65536,
                 },
             });
 
