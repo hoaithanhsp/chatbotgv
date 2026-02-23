@@ -7,15 +7,12 @@ import { SettingsModal } from './components/SettingsModal';
 import { DocumentManager } from './components/DocumentManager';
 import { PromptTemplatePanel } from './components/PromptTemplatePanel';
 import { DashboardModal } from './components/DashboardModal';
-import { PreferencesModal } from './components/PreferencesModal';
 import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import SKKNEditorApp from './skkn/SKKNEditorApp';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { buildDocumentContext } from './services/documents';
 import { initDarkMode, toggleDarkMode, isDarkMode } from './services/darkMode';
-import { updatePreferencesFromInteraction, buildPreferencesPrompt } from './services/teacherPreferences';
-import { trackSessionStart, trackMessageSent, trackFeedback } from './services/sessionTracker';
 import {
   getSessions, saveSessions, deleteSession, renameSession,
   getMessages, saveMessages, generateTitle,
@@ -65,14 +62,14 @@ ${toolsList}
 3. **Cập nhật**: Ưu tiên kiến thức mới nhất về giáo dục, chương trình 2018, công nghệ giáo dục.
 4. **Linh hoạt**: Nếu giáo viên đã upload tài liệu, hãy tham khảo và sử dụng nội dung đó một cách thông minh khi câu hỏi liên quan.
 5. **Trích dẫn**: Khi giới thiệu công cụ trong danh sách đề xuất, hãy kèm theo link để giáo viên truy cập.
-${hasDocuments ? '6. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}${langInstruction}
+6. **Tạo nội dung đầy đủ**: Khi giáo viên yêu cầu tạo đề thi, giáo án, phiếu học tập hoặc bất kỳ sản phẩm nào, hãy LUÔN LUÔN tạo nội dung hoàn chỉnh, chi tiết, có thể sử dụng ngay. TUYỆT ĐỐI KHÔNG chỉ mô tả hoặc tóm tắt những gì sẽ làm. Hãy viết ra toàn bộ câu hỏi, đáp án, ma trận, bảng đặc tả... một cách đầy đủ.
+${hasDocuments ? '7. **Tài liệu**: Giáo viên đã cung cấp tài liệu tham khảo bên dưới. Hãy SỬ DỤNG LINH HOẠT nội dung này khi trả lời - trích dẫn, phân tích, tóm tắt theo yêu cầu.' : ''}${langInstruction}
 
 ## PROFILE GIÁO VIÊN
 - Tên: ${profile.name}
 - Môn: ${profile.subject}
 - Cấp: ${profile.school_level}
 ${profile.school_name ? `- Trường: ${profile.school_name}` : ''}
-${buildPreferencesPrompt()}
 
 ## ĐỊNH DẠNG TRẢ LỜI
 - Sử dụng Markdown đẹp mắt (heading, bullet, bold, code block)
@@ -108,7 +105,6 @@ function App() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSKKNEditor, setShowSKKNEditor] = useState(false);
-  const [showPreferences, setShowPreferences] = useState(false);
 
   // Initialize dark mode on mount
   useEffect(() => {
@@ -250,9 +246,6 @@ function App() {
     setMessages(prev => [...prev, newMessage]);
     setIsTyping(true);
 
-    // Track message sent
-    trackMessageSent(currentChatId, 'user', text);
-
     // Auto-title: if this is the first user message, update title
     const isFirstUserMsg = messages.filter(m => m.role === 'user').length === 0;
     if (isFirstUserMsg) {
@@ -288,10 +281,6 @@ function App() {
       };
 
       setMessages(prev => [...prev, botMessage]);
-
-      // Track AI message & update preferences from interaction
-      trackMessageSent(currentChatId, 'model', responseText);
-      updatePreferencesFromInteraction(text, responseText);
     } catch (error: any) {
       console.error(error);
       const errDetail = error?.message || 'Lỗi không xác định';
@@ -322,7 +311,6 @@ function App() {
     setCurrentChatId(newId);
     setMessages([]);
     setSelectedDocIds([]);
-    trackSessionStart(newId);
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
@@ -451,14 +439,6 @@ function App() {
       return updated;
     });
   }, []);
-
-  // Feedback handler for message like/dislike
-  const handleFeedback = useCallback((messageId: string, feedback: 'like' | 'dislike') => {
-    trackFeedback(messageId, currentChatId || '', feedback);
-    setMessages(prev => prev.map(m =>
-      m.id === messageId ? { ...m, feedback } : m
-    ));
-  }, [currentChatId]);
 
   // Export PDF handler
   const handleExportPdf = () => {
@@ -680,7 +660,6 @@ function App() {
             onFolderFilterChange={setFolderFilter}
             onMoveToFolder={handleMoveToFolder}
             onTogglePin={handleTogglePin}
-            onShowPreferences={() => setShowPreferences(true)}
           />
         </div>
 
@@ -723,10 +702,6 @@ function App() {
               onFolderFilterChange={setFolderFilter}
               onMoveToFolder={handleMoveToFolder}
               onTogglePin={handleTogglePin}
-              onShowPreferences={() => {
-                setShowPreferences(true);
-                setSidebarOpen(false);
-              }}
             />
           </div>
         )}
@@ -747,7 +722,6 @@ function App() {
                 pendingInput={pendingInput}
                 onPendingInputConsumed={() => setPendingInput('')}
                 onRegenerate={handleRegenerate}
-                onFeedback={handleFeedback}
               />
             )}
           </div>
@@ -793,11 +767,6 @@ function App() {
       <DashboardModal
         isOpen={showDashboard}
         onClose={() => setShowDashboard(false)}
-      />
-
-      <PreferencesModal
-        isOpen={showPreferences}
-        onClose={() => setShowPreferences(false)}
       />
 
       {/* Bookmarks Modal */}
