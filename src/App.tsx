@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
+import { LoginScreen } from './components/LoginScreen';
 import { SetupModal } from './components/SetupModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DocumentManager } from './components/DocumentManager';
@@ -10,7 +11,10 @@ import { DashboardModal } from './components/DashboardModal';
 import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import SKKNEditorApp from './skkn/SKKNEditorApp';
 import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
+import type { GeminiPart } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
+import { getCurrentUser, logout as authLogout } from './services/authService';
+import type { AuthSession } from './services/authService';
 import { buildDocumentContext } from './services/documents';
 import { initDarkMode, toggleDarkMode, isDarkMode } from './services/darkMode';
 import {
@@ -20,8 +24,8 @@ import {
   autoDetectTags, updateSessionFolder,
 } from './services/chatStorage';
 import { downloadMarkdown, downloadWord, downloadPdf } from './services/exportChat';
-import type { TeacherProfile, ChatSession, ChatMessage } from './types';
-import { Menu, Settings, Key, Cpu, FileText, Download, Plus, Moon, Sun, Globe } from 'lucide-react';
+import type { TeacherProfile, ChatSession, ChatMessage, FileAttachment } from './types';
+import { Menu, Settings, Key, Cpu, FileText, Download, Plus, Moon, Sun, Globe, LogOut } from 'lucide-react';
 
 import { RECOMMENDED_AI_TOOLS } from './data/aiTools';
 
@@ -80,6 +84,8 @@ ${profile.school_name ? `- Trường: ${profile.school_name}` : ''}
 
 function App() {
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -141,6 +147,15 @@ function App() {
 
   // Load saved sessions on mount
   useEffect(() => {
+    // Check auth first
+    const savedAuth = getCurrentUser();
+    if (!savedAuth) {
+      setLoading(false);
+      return; // will show LoginScreen
+    }
+    setIsLoggedIn(true);
+    setAuthUser(savedAuth);
+
     const apiKey = getGeminiApiKey();
     const userProfile = getTeacherProfile();
 
@@ -233,14 +248,20 @@ function App() {
     setSelectedModelState(model);
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, attachments?: FileAttachment[]) => {
     if (!profile || !currentChatId) return;
 
+    // Build user message — store attachments without base64 for localStorage savings
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       text,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      attachments: attachments?.map(a => ({
+        ...a,
+        // Keep previewUrl for display but truncate base64 for localStorage
+        base64: '', // Don't persist large base64 in localStorage
+      })),
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -249,8 +270,9 @@ function App() {
     // Auto-title: if this is the first user message, update title
     const isFirstUserMsg = messages.filter(m => m.role === 'user').length === 0;
     if (isFirstUserMsg) {
-      const newTitle = generateTitle(text);
-      const tags = autoDetectTags(text);
+      const titleText = text || (attachments?.[0]?.name ? `📎 ${attachments[0].name}` : 'File đính kèm');
+      const newTitle = generateTitle(titleText);
+      const tags = autoDetectTags(titleText);
       setChatHistory(prev => {
         const updated = prev.map(s => s.id === currentChatId ? { ...s, title: newTitle, tags } : s);
         saveSessions(updated);
@@ -262,16 +284,36 @@ function App() {
       const docContext = await buildDocumentContext(selectedDocIds);
       const systemPrompt = constructSystemPrompt(profile, selectedDocIds.length > 0, aiLanguage) + docContext;
 
-      const historyForGemini = [
+      const historyForGemini: { role: string; parts: GeminiPart[] }[] = [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'model', parts: [{ text: "Tôi đã hiểu thông tin và tài liệu tham khảo. Tôi sẵn sàng hỗ trợ bạn." }] },
         ...messages.map(m => ({
           role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.text }]
+          parts: [{ text: m.text }] as GeminiPart[]
         }))
       ];
 
-      const responseText = await generateResponse(historyForGemini, text);
+      // Build user parts: text + inline file data
+      const userParts: GeminiPart[] = [];
+      if (text.trim()) {
+        userParts.push({ text });
+      }
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          userParts.push({
+            inlineData: {
+              mimeType: att.type,
+              data: att.base64,
+            }
+          });
+        }
+        // If no text, add a generic prompt
+        if (!text.trim()) {
+          userParts.push({ text: 'Phân tích nội dung file đính kèm.' });
+        }
+      }
+
+      const responseText = await generateResponse(historyForGemini, userParts);
 
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -391,16 +433,16 @@ function App() {
       const fullPrompt = docContext ? `[Tài liệu tham khảo]\n${docContext}\n\n${userText}` : userText;
 
       // Build history in Gemini format (same as handleSendMessage)
-      const historyForGemini = [
+      const historyForGemini: { role: string; parts: GeminiPart[] }[] = [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'model', parts: [{ text: 'Tôi đã hiểu thông tin và tài liệu tham khảo. Tôi sẵn sàng hỗ trợ bạn.' }] },
         ...messages.slice(0, msgIndex).map(m => ({
           role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.text }]
+          parts: [{ text: m.text }] as GeminiPart[]
         }))
       ];
 
-      const aiResponse = await generateResponse(historyForGemini, fullPrompt);
+      const aiResponse = await generateResponse(historyForGemini, [{ text: fullPrompt }]);
 
       // Save old version, update message
       setMessages(prev => prev.map(m => {
@@ -474,6 +516,41 @@ function App() {
     });
 
   if (loading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div></div>;
+
+  // Auth guard — show Login Screen if not logged in
+  if (!isLoggedIn) {
+    return <LoginScreen onLoginSuccess={(session) => {
+      setIsLoggedIn(true);
+      setAuthUser(session);
+      // Reload app data
+      const apiKey = getGeminiApiKey();
+      const userProfile = getTeacherProfile();
+      if (!apiKey) {
+        setShowSetup(true);
+      } else if (userProfile) {
+        setProfile(userProfile);
+        const savedSessions = getSessions();
+        if (savedSessions.length > 0) {
+          setChatHistory(savedSessions);
+          setCurrentChatId(savedSessions[0].id);
+          setMessages(getMessages(savedSessions[0].id));
+          setSelectedDocIds(savedSessions[0].selectedDocIds || []);
+        } else {
+          const initId = Date.now().toString();
+          const initSession: ChatSession = { id: initId, title: 'Chào mừng', created_at: new Date().toISOString() };
+          const welcomeMsg: ChatMessage = {
+            id: '1', role: 'model', text: `Xin chào **${userProfile.name}**! 👋\n\nTôi là trợ lý AI dành riêng cho giáo viên. Tôi có thể giúp bạn:\n\n📝 Soạn giáo án, bài giảng\n📊 Tạo đề kiểm tra\n📚 Giải đáp thắc mắc chuyên môn\n🎯 Tư vấn phương pháp giảng dạy\n\nHãy đặt câu hỏi hoặc dùng lệnh **/menu** để xem tất cả tính năng!`, timestamp: new Date().toISOString()
+          };
+          setChatHistory([initSession]);
+          setCurrentChatId(initId);
+          setMessages([welcomeMsg]);
+          saveSessions([initSession]);
+          saveMessages(initId, [welcomeMsg]);
+        }
+      }
+      setLoading(false);
+    }} />;
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden app-wrapper">
@@ -628,6 +705,25 @@ function App() {
           <span className="text-xs font-medium text-red-500 hidden sm:inline">Lấy API key để sử dụng app</span>
           <Settings size={14} className="text-gray-400" />
         </button>
+
+        {/* User info & Logout */}
+        {authUser && (
+          <div className="flex items-center gap-2 ml-1">
+            <span className="text-xs font-medium text-gray-500 hidden sm:inline">{authUser.name}</span>
+            <button
+              onClick={() => {
+                authLogout();
+                setIsLoggedIn(false);
+                setAuthUser(null);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs font-medium"
+              title="Đăng xuất"
+            >
+              <LogOut size={14} />
+              <span className="hidden sm:inline">Thoát</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* === MAIN LAYOUT === */}

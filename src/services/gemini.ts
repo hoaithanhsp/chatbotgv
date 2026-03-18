@@ -34,7 +34,9 @@ export const setSelectedModel = (model: string) => {
 
 export const getAvailableModels = () => MODELS;
 
-export const generateResponse = async (history: { role: string; parts: { text: string }[] }[], userMessage: string) => {
+export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+
+export const generateResponse = async (history: { role: string; parts: GeminiPart[] }[], userParts: GeminiPart[]) => {
     const genAI = getGenAI();
     if (!genAI) throw new Error("API Key chưa được nhập. Vui lòng vào Cài đặt để nhập API Key.");
 
@@ -56,7 +58,7 @@ export const generateResponse = async (history: { role: string; parts: { text: s
                 },
             });
 
-            const result = await chat.sendMessage(userMessage);
+            const result = await chat.sendMessage(userParts);
             const response = await result.response;
             const text = response.text();
             if (text) {

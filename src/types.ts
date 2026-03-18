@@ -9,6 +9,15 @@ export interface TeacherProfile {
     specialization?: string;
 }
 
+export interface FileAttachment {
+    name: string;       // tên file gốc
+    type: string;       // MIME type (image/png, application/pdf, ...)
+    size: number;       // bytes
+    base64: string;     // base64 data (không bao gồm prefix data:...)
+    isImage: boolean;   // true nếu là hình ảnh
+    previewUrl?: string; // data URL để hiển thị preview (cho images)
+}
+
 export interface ChatMessage {
     id: string;
     role: 'user' | 'model'; // 'model' is what Gemini uses, we can map to UI 'assistant'
@@ -16,6 +25,7 @@ export interface ChatMessage {
     timestamp: string; // ISO string
     versions?: { text: string; timestamp: string }[];
     feedback?: 'like' | 'dislike' | null;
+    attachments?: FileAttachment[];
 }
 
 export interface ChatSession {

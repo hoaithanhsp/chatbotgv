@@ -1,14 +1,57 @@
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Send, Loader2, Sparkles, Zap, Mic, MicOff } from 'lucide-react';
-import type { ChatMessage } from '../types';
+import { Send, Loader2, Sparkles, Zap, Mic, MicOff, Paperclip, X, FileIcon, ImageIcon, FileText, Film, Music } from 'lucide-react';
+import type { ChatMessage, FileAttachment } from '../types';
 import { MessageBubble } from './MessageBubble';
 import { SLASH_COMMANDS, PROMPT_TEMPLATES } from '../data/promptTemplates';
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILES = 10;
+
+// Helper: convert File to FileAttachment
+const fileToAttachment = (file: File): Promise<FileAttachment> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            // result = "data:<mime>;base64,<data>"
+            const base64 = result.split(',')[1] || '';
+            const isImage = file.type.startsWith('image/');
+            resolve({
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                size: file.size,
+                base64,
+                isImage,
+                previewUrl: isImage ? result : undefined,
+            });
+        };
+        reader.onerror = () => reject(new Error(`Không thể đọc file: ${file.name}`));
+        reader.readAsDataURL(file);
+    });
+};
+
+// Format file size
+const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+// Get icon for file type
+const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <ImageIcon size={18} className="text-purple-500" />;
+    if (type.startsWith('video/')) return <Film size={18} className="text-blue-500" />;
+    if (type.startsWith('audio/')) return <Music size={18} className="text-pink-500" />;
+    if (type.includes('pdf') || type.includes('document') || type.includes('text'))
+        return <FileText size={18} className="text-orange-500" />;
+    return <FileIcon size={18} className="text-gray-500" />;
+};
 
 interface ChatAreaProps {
     messages: ChatMessage[];
     isTyping: boolean;
-    onSendMessage: (text: string) => void;
+    onSendMessage: (text: string, attachments?: FileAttachment[]) => void;
     userName: string;
     onBookmark?: (msg: ChatMessage) => void;
     onOpenTemplates?: () => void;
@@ -23,11 +66,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashFilter, setSlashFilter] = useState('');
     const [selectedSlashIdx, setSelectedSlashIdx] = useState(0);
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
+
+    // File attachments state
+    const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const [fileError, setFileError] = useState<string | null>(null);
+    const dragCounterRef = useRef(0);
 
     // Web Speech API setup
     useEffect(() => {
@@ -45,7 +95,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                 transcript += event.results[i][0].transcript;
             }
             setInput(prev => {
-                // If this is a final result, append to existing
                 if (event.results[event.results.length - 1].isFinal) {
                     return prev + transcript + ' ';
                 }
@@ -98,6 +147,122 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
         scrollToBottom();
     }, [messages, isTyping]);
 
+    // Clear file error after 5 seconds
+    useEffect(() => {
+        if (fileError) {
+            const timer = setTimeout(() => setFileError(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [fileError]);
+
+    // ========== FILE HANDLING ==========
+    const processFiles = async (files: FileList | File[]) => {
+        const fileArray = Array.from(files);
+        const newErrors: string[] = [];
+
+        // Check total count
+        if (attachedFiles.length + fileArray.length > MAX_FILES) {
+            setFileError(`Tối đa ${MAX_FILES} file mỗi lần gửi. Bạn đã có ${attachedFiles.length} file.`);
+            return;
+        }
+
+        const validFiles: File[] = [];
+        for (const file of fileArray) {
+            if (file.size > MAX_FILE_SIZE) {
+                newErrors.push(`"${file.name}" vượt quá 20MB (${formatFileSize(file.size)})`);
+            } else {
+                validFiles.push(file);
+            }
+        }
+
+        if (newErrors.length > 0) {
+            setFileError(newErrors.join('. '));
+        }
+
+        if (validFiles.length === 0) return;
+
+        try {
+            const attachments = await Promise.all(validFiles.map(fileToAttachment));
+            setAttachedFiles(prev => [...prev, ...attachments].slice(0, MAX_FILES));
+        } catch (err: any) {
+            setFileError(err.message || 'Lỗi khi đọc file');
+        }
+    };
+
+    const removeFile = (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Drag & Drop handlers
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounterRef.current++;
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDragging(true);
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounterRef.current--;
+        if (dragCounterRef.current === 0) {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounterRef.current = 0;
+        setIsDragging(false);
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            processFiles(files);
+        }
+    };
+
+    // Paste handler (Ctrl+V for images)
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        const imageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) {
+                    imageFiles.push(file);
+                }
+            }
+        }
+
+        if (imageFiles.length > 0) {
+            e.preventDefault(); // prevent pasting image as text
+            processFiles(imageFiles);
+        }
+    };
+
+    // File input handler
+    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            processFiles(files);
+        }
+        // Reset input so same file can be selected again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     // Slash command filtering
     const filteredCommands = useMemo(() => {
         if (!slashFilter) return SLASH_COMMANDS;
@@ -116,10 +281,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
     const handleInputChange = (value: string) => {
         setInput(value);
 
-        // Detect slash command typing
         if (value.startsWith('/')) {
             setShowSlashMenu(true);
-            setSlashFilter(value.slice(1)); // remove the leading /
+            setSlashFilter(value.slice(1));
         } else {
             setShowSlashMenu(false);
             setSlashFilter('');
@@ -130,7 +294,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
         setInput(templatePrompt);
         setShowSlashMenu(false);
         setSlashFilter('');
-        // Focus textarea after selecting
         setTimeout(() => {
             textareaRef.current?.focus();
             adjustHeight();
@@ -140,12 +303,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
     const handleSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!input.trim() || isTyping) return;
+        if ((!input.trim() && attachedFiles.length === 0) || isTyping) return;
 
         // Check if input is a slash command exactly
         const exactMatch = SLASH_COMMANDS.find(c => c.command === input.trim());
         if (exactMatch) {
-            // Load template prompt instead
             import('../data/promptTemplates').then(({ PROMPT_TEMPLATES }) => {
                 const template = PROMPT_TEMPLATES.find(t => t.id === exactMatch.templateId);
                 if (template) {
@@ -158,8 +320,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
             return;
         }
 
-        onSendMessage(input);
+        onSendMessage(input, attachedFiles.length > 0 ? attachedFiles : undefined);
         setInput('');
+        setAttachedFiles([]);
         setShowSlashMenu(false);
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -214,7 +377,26 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
 
 
     return (
-        <div className="relative w-full h-full bg-slate-50/50">
+        <div
+            className="relative w-full h-full bg-slate-50/50"
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
+            {/* Drag overlay */}
+            {isDragging && (
+                <div className="absolute inset-0 bg-teal-500/10 backdrop-blur-sm z-50 flex items-center justify-center border-2 border-dashed border-teal-400 rounded-xl m-2 pointer-events-none">
+                    <div className="text-center animate-in zoom-in-95 duration-200">
+                        <div className="w-20 h-20 bg-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <Paperclip size={36} className="text-teal-600" />
+                        </div>
+                        <p className="text-teal-700 font-bold text-lg">Thả file vào đây</p>
+                        <p className="text-teal-500 text-sm mt-1">Hỗ trợ tất cả định dạng • Tối đa 20MB/file</p>
+                    </div>
+                </div>
+            )}
+
             {/* Scrollable content area */}
             <div
                 className="absolute inset-0 bottom-[110px] overflow-y-auto custom-scrollbar scroll-smooth"
@@ -294,7 +476,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
             </div>
 
             {/* Input Area */}
-            <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-teal-50 p-4 z-10 transition-all duration-300">
+            <div className={`absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-teal-50 p-4 z-10 transition-all duration-300 ${attachedFiles.length > 0 ? 'pb-3' : ''}`}>
                 <div className="max-w-4xl mx-auto relative group">
                     {/* Slash Command Menu */}
                     {showSlashMenu && filteredCommands.length > 0 && (
@@ -334,6 +516,61 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         </div>
                     )}
 
+                    {/* File Error Message */}
+                    {fileError && (
+                        <div className="absolute bottom-full mb-2 left-0 right-0 bg-red-50 border border-red-200 rounded-xl shadow-sm px-4 py-3 animate-in fade-in slide-in-from-bottom-2 duration-150 z-20 flex items-start gap-2">
+                            <span className="text-red-500 shrink-0 mt-0.5">⚠️</span>
+                            <p className="text-sm text-red-600 flex-1">{fileError}</p>
+                            <button onClick={() => setFileError(null)} className="text-red-400 hover:text-red-600 shrink-0">
+                                <X size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Attached Files Preview */}
+                    {attachedFiles.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-2 animate-in fade-in duration-200">
+                            {attachedFiles.map((file, idx) => (
+                                <div
+                                    key={idx}
+                                    className="relative group/file bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
+                                >
+                                    {file.isImage && file.previewUrl ? (
+                                        <div className="w-20 h-20 relative">
+                                            <img
+                                                src={file.previewUrl}
+                                                alt={file.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover/file:bg-black/20 transition-colors" />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 px-3 py-2.5 max-w-[200px]">
+                                            {getFileIcon(file.type)}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-medium text-gray-700 truncate">{file.name}</p>
+                                                <p className="text-[10px] text-gray-400">{formatFileSize(file.size)}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Remove button */}
+                                    <button
+                                        onClick={() => removeFile(idx)}
+                                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                    {/* File name tooltip for images */}
+                                    {file.isImage && (
+                                        <div className="px-2 py-1 bg-gray-50 border-t border-gray-100">
+                                            <p className="text-[10px] text-gray-500 truncate">{file.name}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl opacity-20 group-focus-within:opacity-40 transition duration-300 blur"></div>
                     <div className="relative flex items-end gap-2 p-2 bg-white rounded-2xl shadow-sm border border-slate-200">
                         {/* Template Button */}
@@ -346,6 +583,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                                 <Zap size={20} />
                             </button>
                         )}
+
+                        {/* Attach File Button */}
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Đính kèm file (kéo thả hoặc Ctrl+V cho ảnh)"
+                            className="p-3 rounded-xl text-gray-400 hover:text-teal-500 hover:bg-teal-50 transition-colors mb-0.5 shrink-0"
+                        >
+                            <Paperclip size={20} />
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={handleFileInputChange}
+                            accept="*/*"
+                        />
+
                         <textarea
                             ref={textareaRef}
                             rows={1}
@@ -355,7 +610,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                                 adjustHeight();
                             }}
                             onKeyDown={handleKeyDown}
-                            placeholder="Nhập câu hỏi hoặc gõ / để dùng lệnh nhanh..."
+                            onPaste={handlePaste}
+                            placeholder={attachedFiles.length > 0 ? "Thêm mô tả cho file đính kèm..." : "Nhập câu hỏi hoặc gõ / để dùng lệnh nhanh..."}
                             className="w-full max-h-48 bg-transparent border-0 text-slate-800 placeholder:text-slate-400 focus:ring-0 resize-none py-3 px-3 custom-scrollbar leading-relaxed"
                             style={{ minHeight: 44 }}
                         />
@@ -372,8 +628,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         </button>
                         <button
                             onClick={() => handleSubmit()}
-                            disabled={!input.trim() || isTyping}
-                            className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${input.trim() && !isTyping
+                            disabled={(!input.trim() && attachedFiles.length === 0) || isTyping}
+                            className={`p-3 rounded-xl transition-all duration-200 mb-0.5 shrink-0 ${(input.trim() || attachedFiles.length > 0) && !isTyping
                                 ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-teal-200 hover:-translate-y-0.5'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 }`}
@@ -382,7 +638,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                         </button>
                     </div>
                     <p className="text-center text-[10px] text-slate-400 mt-2 font-medium tracking-wide uppercase">
-                        AI có thể mắc lỗi • Gõ <kbd className="bg-gray-100 px-1 rounded font-mono">/</kbd> để xem lệnh nhanh
+                        AI có thể mắc lỗi • Gõ <kbd className="bg-gray-100 px-1 rounded font-mono">/</kbd> để xem lệnh nhanh • <kbd className="bg-gray-100 px-1 rounded font-mono">Ctrl+V</kbd> để dán ảnh
                     </p>
                 </div>
             </div>

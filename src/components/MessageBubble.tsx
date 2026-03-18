@@ -5,10 +5,27 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star, RefreshCw } from 'lucide-react';
+import { Bot, User, Copy, ThumbsUp, ThumbsDown, Check, Star, RefreshCw, FileIcon, ImageIcon, FileText, Film, Music } from 'lucide-react';
 import type { ChatMessage } from '../types';
 import { isBookmarked } from '../services/chatStorage';
 import { getMessageFeedback } from '../services/sessionTracker';
+
+// Format file size
+const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+// Get icon for file type
+const getFileTypeIcon = (type: string) => {
+    if (type.startsWith('image/')) return <ImageIcon size={16} className="text-purple-500" />;
+    if (type.startsWith('video/')) return <Film size={16} className="text-blue-500" />;
+    if (type.startsWith('audio/')) return <Music size={16} className="text-pink-500" />;
+    if (type.includes('pdf') || type.includes('document') || type.includes('text'))
+        return <FileText size={16} className="text-orange-500" />;
+    return <FileIcon size={16} className="text-gray-500" />;
+};
 
 interface MessageBubbleProps {
     message: ChatMessage;
@@ -92,6 +109,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onBookmar
 
                 <div className={`prose prose-slate prose-sm max-w-none text-slate-700 leading-relaxed ${isUser ? 'whitespace-pre-wrap font-medium text-slate-800' : ''
                     }`}>
+                    {/* Attachments display for user messages */}
+                    {isUser && message.attachments && message.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3 not-prose">
+                            {message.attachments.map((att, idx) => (
+                                <div key={idx} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                    {att.isImage && att.previewUrl ? (
+                                        <div className="max-w-[200px]">
+                                            <img
+                                                src={att.previewUrl}
+                                                alt={att.name}
+                                                className="w-full h-auto max-h-[150px] object-cover rounded-t-xl cursor-pointer hover:opacity-90 transition-opacity"
+                                                onClick={() => window.open(att.previewUrl, '_blank')}
+                                            />
+                                            <div className="px-2 py-1 bg-gray-50 border-t border-gray-100">
+                                                <p className="text-[10px] text-gray-500 truncate">{att.name}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 px-3 py-2.5 max-w-[200px]">
+                                            {getFileTypeIcon(att.type)}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-medium text-gray-700 truncate">{att.name}</p>
+                                                <p className="text-[10px] text-gray-400">{formatFileSize(att.size)}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {isUser ? (
                         message.text
                     ) : (
