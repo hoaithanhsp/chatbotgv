@@ -16,6 +16,7 @@ import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfile
 import { getCurrentUser, logout as authLogout } from './services/authService';
 import type { AuthSession } from './services/authService';
 import { buildDocumentContext } from './services/documents';
+import { processFilesForGemini } from './services/fileProcessor';
 import { initDarkMode, toggleDarkMode, isDarkMode } from './services/darkMode';
 import {
   getSessions, saveSessions, deleteSession, renameSession,
@@ -293,20 +294,15 @@ function App() {
         }))
       ];
 
-      // Build user parts: text + inline file data
+      // Build user parts: text + processed file attachments
       const userParts: GeminiPart[] = [];
       if (text.trim()) {
         userParts.push({ text });
       }
       if (attachments && attachments.length > 0) {
-        for (const att of attachments) {
-          userParts.push({
-            inlineData: {
-              mimeType: att.type,
-              data: att.base64,
-            }
-          });
-        }
+        // Xử lý file qua fileProcessor (DOCX → text+ảnh, ảnh/PDF → giữ nguyên)
+        const fileParts = await processFilesForGemini(attachments);
+        userParts.push(...fileParts);
         // If no text, add a generic prompt
         if (!text.trim()) {
           userParts.push({ text: 'Phân tích nội dung file đính kèm.' });
@@ -429,7 +425,7 @@ function App() {
     setIsTyping(true);
     try {
       const systemPrompt = constructSystemPrompt(profile || { name: 'Giáo viên', subject: '', school_level: '' }, selectedDocIds.length > 0, aiLanguage);
-      const docContext = selectedDocIds.length > 0 ? buildDocumentContext(selectedDocIds) : '';
+      const docContext = selectedDocIds.length > 0 ? await buildDocumentContext(selectedDocIds) : '';
       const fullPrompt = docContext ? `[Tài liệu tham khảo]\n${docContext}\n\n${userText}` : userText;
 
       // Build history in Gemini format (same as handleSendMessage)

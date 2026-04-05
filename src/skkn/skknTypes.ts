@@ -121,9 +121,9 @@ export interface HistoryEntry {
 }
 
 export const AI_MODELS = [
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', desc: 'Nhanh, mới nhất', default: true },
-    { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', desc: 'Chất lượng cao nhất', default: false },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Ổn định, dự phòng', default: false },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Cân bằng chi phí & hiệu năng', default: true },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', desc: 'Reasoning mạnh, phân tích sâu', default: false },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Lite', desc: 'Tiết kiệm nhất', default: false },
 ] as const;
 
 export type AIModelId = typeof AI_MODELS[number]['id'];

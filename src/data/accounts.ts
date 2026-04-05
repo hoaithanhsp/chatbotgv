@@ -14,5 +14,4 @@ export const ACCOUNTS: UserAccount[] = [
   { username: "lethiphuongha030980@gmail.com", password: "123456", name: "GV" },
   { username: "vohoaitam87@gmail.com", password: "SKKN100", name: "GV" },
   { username: "Masavu97@gmail.com", password: "SKKN100", name: "GV" },
-  { username: "VIPKIMCUONG", password: "123456", name: "GV" },
 ];

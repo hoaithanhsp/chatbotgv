@@ -139,7 +139,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-6">
-          © 2025 Trợ lý GV AI — Hỗ trợ giáo viên Việt Nam
+          © 2026 Trợ lý GV AI — Hỗ trợ giáo viên Việt Nam
         </p>
       </div>
     </div>

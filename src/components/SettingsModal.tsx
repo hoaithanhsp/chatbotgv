@@ -40,12 +40,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
     const getModelInfo = (model: string) => {
         switch (model) {
-            case 'gemini-3-flash-preview':
-                return { label: '3 Flash', desc: 'Nhanh nhất, phù hợp chat thông thường', badge: 'Default', color: 'emerald' };
-            case 'gemini-3-pro-preview':
-                return { label: '3 Pro', desc: 'Mạnh hơn, phù hợp phân tích chuyên sâu', badge: 'Pro', color: 'teal' };
             case 'gemini-2.5-flash':
-                return { label: '2.5 Flash', desc: 'Ổn định, model dự phòng tin cậy', badge: 'Stable', color: 'amber' };
+                return { label: '2.5 Flash', desc: 'Cân bằng chi phí & hiệu năng, ổn định', badge: 'Default', color: 'emerald' };
+            case 'gemini-3-flash-preview':
+                return { label: '3 Flash', desc: 'Reasoning mạnh, phân tích chuyên sâu', badge: 'Pro', color: 'teal' };
+            case 'gemini-2.5-flash-lite':
+                return { label: '2.5 Lite', desc: 'Tiết kiệm nhất, phù hợp chat đơn giản', badge: 'Tiết kiệm', color: 'amber' };
             default:
                 return { label: model, desc: '', badge: '', color: 'gray' };
         }
