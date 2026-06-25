@@ -325,7 +325,7 @@ function App() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        text: `**⚠️ Lỗi:** ${errDetail}\n\nVui lòng kiểm tra:\n- API Key có đúng không?\n- Kết nối mạng có ổn không?\n- API Key đã hết quota chưa?\n\n👉 Nhấn nút **Settings (API Key)** trên Header để cập nhật.`,
+        text: `**⚠️ Lỗi:** ${errDetail}\n\nVui lòng kiểm tra:\n- API Key có đúng không hoặc đã chuyển sang auth key mới chưa?\n- Kết nối mạng có ổn không?\n- API Key đã hết quota chưa?\n- Model Gemini có đang quá tải tạm thời không?\n\n👉 Nhấn nút **Settings (API Key)** trên Header để cập nhật hoặc chọn model nhẹ hơn.`,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);

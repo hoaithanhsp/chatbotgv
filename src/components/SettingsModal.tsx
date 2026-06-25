@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, Check } from 'lucide-react';
-import { getAvailableModels, getSelectedModel, setSelectedModel } from '../services/gemini';
+import { getAvailableModels, getSelectedModel, isValidGoogleAiApiKey, setSelectedModel } from '../services/gemini';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -27,6 +27,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     if (!isOpen) return null;
 
     const handleSave = () => {
+        if (apiKey.trim() && !isValidGoogleAiApiKey(apiKey)) {
+            alert('API Key Google AI không hợp lệ. Key mới bắt đầu bằng AQ..., key cũ bắt đầu bằng AIzaSy...');
+            return;
+        }
         onSave(apiKey, supabaseUrl, supabaseKey);
         onClose();
     };
@@ -42,10 +46,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         switch (model) {
             case 'gemini-2.5-flash':
                 return { label: '2.5 Flash', desc: 'Cân bằng chi phí & hiệu năng, ổn định', badge: 'Default', color: 'emerald' };
-            case 'gemini-3-flash-preview':
-                return { label: '3 Flash', desc: 'Reasoning mạnh, phân tích chuyên sâu', badge: 'Pro', color: 'teal' };
             case 'gemini-2.5-flash-lite':
                 return { label: '2.5 Lite', desc: 'Tiết kiệm nhất, phù hợp chat đơn giản', badge: 'Tiết kiệm', color: 'amber' };
+            case 'gemini-3.5-flash':
+                return { label: '3.5 Flash', desc: 'Model stable mới, mạnh cho suy luận và nội dung dài', badge: 'Mới', color: 'teal' };
+            case 'gemini-2.5-pro':
+                return { label: '2.5 Pro', desc: 'Phân tích sâu, dùng khi cần chất lượng cao', badge: 'Pro', color: 'teal' };
             default:
                 return { label: model, desc: '', badge: '', color: 'gray' };
         }
@@ -110,7 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                            placeholder="AIza..."
+                            placeholder="AIzaSy... hoặc AQ..."
                         />
                         <div className="flex items-center justify-between mt-2">
                             <p className="text-xs text-red-500 font-medium">⚠️ Lấy API key để sử dụng app</p>

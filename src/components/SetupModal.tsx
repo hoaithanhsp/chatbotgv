@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { TeacherProfile } from '../types';
 import { ExternalLink, Key, Sparkles, User } from 'lucide-react';
+import { isValidGoogleAiApiKey } from '../services/gemini';
 
 interface SetupModalProps {
     onSubmit: (apiKey: string, supabaseUrl: string, supabaseKey: string, profile: TeacherProfile) => void;
@@ -22,6 +23,10 @@ export const SetupModal: React.FC<SetupModalProps> = ({ onSubmit }) => {
         if (step === 1) {
             if (!apiKey) {
                 alert('Vui lòng nhập Gemini API Key để sử dụng app');
+                return;
+            }
+            if (!isValidGoogleAiApiKey(apiKey)) {
+                alert('API Key Google AI không hợp lệ. Key mới bắt đầu bằng AQ..., key cũ bắt đầu bằng AIzaSy...');
                 return;
             }
             setStep(2);
@@ -87,7 +92,7 @@ export const SetupModal: React.FC<SetupModalProps> = ({ onSubmit }) => {
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                placeholder="AIza..."
+                                placeholder="AIzaSy... hoặc AQ..."
                             />
                             <p className="text-xs text-red-500 mt-1 font-medium">⚠️ Bắt buộc nhập API key để sử dụng app</p>
                         </div>

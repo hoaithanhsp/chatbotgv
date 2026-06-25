@@ -1,7 +1,17 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { AI_MODELS } from "../skknTypes";
 import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AIModelId } from "../skknTypes";
 import { buildKnowledgeContext, SCORING_CRITERIA, CLICHE_PHRASES, COMPARISON_TABLE_TEMPLATE } from "../knowledge-base";
+import { parseApiError } from "../../services/gemini";
+
+const SchemaType = {
+    OBJECT: 'object',
+    ARRAY: 'array',
+    STRING: 'string',
+    NUMBER: 'number',
+    INTEGER: 'integer',
+    BOOLEAN: 'boolean',
+} as const;
 
 // --- API Key & Model Management ---
 const STORAGE_KEY_MODEL = 'skkn_editor_model';
@@ -23,7 +33,7 @@ export const setSelectedModel = (model: AIModelId): void => {
 const getGenAI = () => {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error("API_KEY_MISSING");
-    return new GoogleGenerativeAI(apiKey);
+    return new GoogleGenAI({ apiKey: apiKey.trim() });
 };
 
 // --- Timeout wrapper ---
@@ -36,6 +46,8 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 90000): Promise<T> => 
     ]);
 };
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // --- Fallback model chain ---
 const getModelChain = (): string[] => {
     const selected = getSelectedModel();
@@ -46,37 +58,62 @@ const getModelChain = (): string[] => {
 const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T> => {
     const chain = getModelChain();
     let lastError: any = null;
+    let sawQuotaError = false;
+    let sawOverloadError = false;
+    let sawUnknownError = false;
 
-    for (const model of chain) {
+    for (let i = 0; i < chain.length; i++) {
+        const model = chain[i];
         try {
             console.log(`[SKKN] Trying model: ${model}`);
             const result = await withTimeout(fn(model));
-            console.log(`[SKKN] ✅ Success with model: ${model}`);
+            console.log(`[SKKN] Success with model: ${model}`);
             return result;
         } catch (error: any) {
             lastError = error;
-            console.warn(`[SKKN] ❌ Model ${model} failed:`, error.message);
+            const errorType = parseApiError(error);
+            console.warn(`[SKKN] Model ${model} failed (${errorType}):`, error.message);
             if (error.message === 'API_KEY_MISSING') throw error;
-            continue;
+            if (errorType === 'INVALID_API_KEY') {
+                throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API.');
+            }
+            if (errorType === 'QUOTA_EXCEEDED') {
+                sawQuotaError = true;
+            } else if (errorType === 'MODEL_OVERLOADED') {
+                sawOverloadError = true;
+            } else {
+                sawUnknownError = true;
+            }
+            if (i < chain.length - 1) {
+                await delay(errorType === 'QUOTA_EXCEEDED' ? 2000 : 1000);
+            }
         }
     }
+
+    if (sawOverloadError && !sawUnknownError) {
+        throw new Error('Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn Gemini 2.5 Flash-Lite.');
+    }
+
+    if (sawQuotaError && !sawUnknownError) {
+        throw new Error('API Key đã hết quota hoặc bị giới hạn tốc độ. Hãy tạo auth key mới tại Google AI Studio hoặc thử lại sau.');
+    }
+
     throw lastError;
 };
 
 // --- Helper: Generate JSON content with structured output ---
 const generateJSON = async (modelName: string, prompt: string, schema: any, temperature: number = 0): Promise<any> => {
     const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({
+    const result = await genAI.models.generateContent({
         model: modelName,
-        generationConfig: {
+        contents: prompt,
+        config: {
             temperature,
             responseMimeType: "application/json",
             responseSchema: schema,
         }
     });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const text = result.text || '';
     if (!text) throw new Error("No response from AI");
     return JSON.parse(text);
 };
@@ -84,16 +121,15 @@ const generateJSON = async (modelName: string, prompt: string, schema: any, temp
 // --- Helper: Generate text content ---
 const generateText = async (modelName: string, prompt: string, temperature: number = 0.3): Promise<string> => {
     const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({
+    const result = await genAI.models.generateContent({
         model: modelName,
-        generationConfig: {
+        contents: prompt,
+        config: {
             temperature,
             maxOutputTokens: 8192,
         }
     });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    return response.text() || "";
+    return result.text || "";
 };
 
 // --- Analyze SKKN ---
@@ -732,15 +768,15 @@ ${sectionContent}
 
     return callWithFallback(async (model) => {
         const genAI = getGenAI();
-        const genModel = genAI.getGenerativeModel({
+        const result = await genAI.models.generateContent({
             model,
-            generationConfig: {
+            contents: prompt,
+            config: {
                 temperature: 0.2,
                 maxOutputTokens: 16384,
             }
         });
-        const result = await genModel.generateContent(prompt);
-        return result.response.text() || "";
+        return result.text || "";
     });
 }
 
