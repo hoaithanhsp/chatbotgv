@@ -1,23 +1,37 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, Check } from 'lucide-react';
-import { getAvailableModels, getSelectedModel, isValidGoogleAiApiKey, setSelectedModel } from '../services/gemini';
+import { 
+    getAvailableModels, 
+    getSelectedModel, 
+    setSelectedModel, 
+    getProvider, 
+    setProvider, 
+    AiProvider,
+    getGeminiApiKey,
+    getAgentPlatformApiKey,
+    setGeminiApiKey,
+    setAgentPlatformApiKey
+} from '../services/gemini';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (apiKey: string, supabaseUrl: string, supabaseKey: string) => void;
+    onSave: (supabaseUrl: string, supabaseKey: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }) => {
-    const [apiKey, setApiKey] = useState('');
+    const [providerState, setProviderState] = useState<AiProvider>('gemini');
+    const [geminiKey, setGeminiKey] = useState('');
+    const [agentKey, setAgentKey] = useState('');
     const [supabaseUrl, setSupabaseUrl] = useState('');
     const [supabaseKey, setSupabaseKey] = useState('');
     const [currentModel, setCurrentModel] = useState(getSelectedModel());
 
     useEffect(() => {
         if (isOpen) {
-            setApiKey(localStorage.getItem('gemini_api_key') || '');
+            setProviderState(getProvider());
+            setGeminiKey(getGeminiApiKey() || '');
+            setAgentKey(getAgentPlatformApiKey() || '');
             setSupabaseUrl(localStorage.getItem('supabase_url') || '');
             setSupabaseKey(localStorage.getItem('supabase_anon_key') || '');
             setCurrentModel(getSelectedModel());
@@ -27,11 +41,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     if (!isOpen) return null;
 
     const handleSave = () => {
-        if (apiKey.trim() && !isValidGoogleAiApiKey(apiKey)) {
-            alert('API Key Google AI không hợp lệ. Key mới bắt đầu bằng AQ..., key cũ bắt đầu bằng AIzaSy...');
-            return;
+        setProvider(providerState);
+        if (providerState === 'gemini') {
+            setGeminiApiKey(geminiKey);
+        } else {
+            setAgentPlatformApiKey(agentKey);
         }
-        onSave(apiKey, supabaseUrl, supabaseKey);
+        
+        onSave(supabaseUrl, supabaseKey);
         onClose();
     };
 
@@ -44,12 +61,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
     const getModelInfo = (model: string) => {
         switch (model) {
+            case 'gemini-3.6-flash':
             case 'gemini-2.5-flash':
-                return { label: '2.5 Flash', desc: 'Cân bằng chi phí & hiệu năng, ổn định', badge: 'Default', color: 'emerald' };
+                return { label: 'Flash (Default)', desc: 'Cân bằng chi phí & hiệu năng, ổn định', badge: 'Default', color: 'emerald' };
             case 'gemini-2.5-flash-lite':
                 return { label: '2.5 Lite', desc: 'Tiết kiệm nhất, phù hợp chat đơn giản', badge: 'Tiết kiệm', color: 'amber' };
             case 'gemini-3.5-flash':
-                return { label: '3.5 Flash', desc: 'Model stable mới, mạnh cho suy luận và nội dung dài', badge: 'Mới', color: 'teal' };
+                return { label: '3.5 Flash', desc: 'Model stable mới, mạnh cho suy luận', badge: 'Mới', color: 'teal' };
             case 'gemini-2.5-pro':
                 return { label: '2.5 Pro', desc: 'Phân tích sâu, dùng khi cần chất lượng cao', badge: 'Pro', color: 'teal' };
             default:
@@ -68,6 +86,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 </div>
 
                 <div className="space-y-6">
+                    
+                    {/* === PROVIDER SELECTION === */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">🔗 Chọn Nền Tảng API</h3>
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button
+                                onClick={() => {
+                                    setProviderState('gemini');
+                                }}
+                                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${providerState === 'gemini' ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Gemini API (Google AI Studio)
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setProviderState('agent-platform');
+                                }}
+                                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${providerState === 'agent-platform' ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Agent Platform API
+                            </button>
+                        </div>
+                    </div>
 
                     {/* === MODEL SELECTION === */}
                     <div>
@@ -110,25 +151,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                     {/* === API KEY === */}
                     <div className="pt-4 border-t border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">🔑 Gemini API Key</h3>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                            placeholder="AIzaSy... hoặc AQ..."
-                        />
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                            {providerState === 'gemini' ? '🔑 Gemini API Key' : '🔑 Agent Platform API Key'}
+                        </h3>
+                        {providerState === 'gemini' ? (
+                            <input
+                                type="password"
+                                value={geminiKey}
+                                onChange={(e) => setGeminiKey(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                placeholder="Nhập key bắt đầu bằng AIzaSy..."
+                            />
+                        ) : (
+                            <input
+                                type="password"
+                                value={agentKey}
+                                onChange={(e) => setAgentKey(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                placeholder="Nhập key bắt đầu bằng AQ..."
+                            />
+                        )}
                         <div className="flex items-center justify-between mt-2">
-                            <p className="text-xs text-red-500 font-medium">⚠️ Lấy API key để sử dụng app</p>
-                            <a
-                                href="https://aistudio.google.com/api-keys"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline font-medium"
-                            >
-                                <ExternalLink size={11} />
-                                Lấy API Key
-                            </a>
+                            <p className="text-xs text-red-500 font-medium">⚠️ Cần nhập API key để sử dụng app</p>
+                            {providerState === 'gemini' && (
+                                <a
+                                    href="https://aistudio.google.com/api-keys"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline font-medium"
+                                >
+                                    <ExternalLink size={11} />
+                                    Lấy API Key
+                                </a>
+                            )}
                         </div>
                     </div>
 
