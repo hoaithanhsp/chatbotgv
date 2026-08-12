@@ -138,6 +138,99 @@ export const RECOMMENDED_AI_TOOLS: AITool[] = [
         tags: ['Thần số học', 'Lộ trình', 'SUPER VIP'],
         is_pro: true
     },
+    // --- BỔ SUNG CÔNG CỤ TỪ WEB ---
+    {
+        id: 'ai-power',
+        name: 'TRỢ LÝ SOẠN POWERPOINT / WORD TỪ FILE PDF / ẢNH (BẢN UPDATE 5)',
+        description: 'Chuyển đổi hình ảnh đề thi dạng file ảnh / file pdf hoặc text sang Word / Powerpoint siêu đẹp, chuẩn định dạng để in ấn.',
+        image_url: '/40.png',
+        url: 'https://aipowerpoint.vercel.app/',
+        category: 'ỨNG DỤNG WEB',
+        tags: ['Powerpoint', 'Word', 'PRO'],
+        is_pro: true
+    },
+    {
+        id: 'trinh-giai-toan',
+        name: 'TRỢ LÝ GIẢI TOÁN TOÀN NĂNG',
+        description: 'Chụp ảnh có hình hoặc không có hình, công cụ tự vẽ lại hình siêu đẹp bằng TikZ LaTeX, xuất ảnh vẽ hình, tự code python giải, xuất file pdf, word.',
+        image_url: '/41.png',
+        url: 'https://trinhgiaitoan.vercel.app/',
+        category: 'ỨNG DỤNG WEB',
+        tags: ['Toán học', 'TikZ', 'PRO'],
+        is_pro: true
+    },
+    {
+        id: 'cong-thuc-toan',
+        name: 'TRỢ LÝ GÕ CÔNG THỨC TOÁN',
+        description: 'Chụp hình công thức toán hoặc vẽ công cụ này sẽ giúp chuyển thành file dạng chữ có công thức dạng LaTeX...',
+        image_url: '/app10.png',
+        url: 'https://aigocongthuc.vercel.app/',
+        category: 'ỨNG DỤNG WEB',
+        tags: ['Toán', 'LaTeX', 'HOT']
+    },
+    {
+        id: 'tro-ly-skkn',
+        name: 'TRỢ LÝ VIẾT SKKN & CHUYÊN ĐỀ',
+        description: 'Hỗ trợ giáo viên lập dàn ý, viết nội dung chi tiết cho Sáng kiến kinh nghiệm, chuyên đề chuyên môn, xuất file Word chuẩn form.',
+        image_url: '/app13.png',
+        url: 'https://viet-skkn.vercel.app/',
+        category: 'ỨNG DỤNG WEB',
+        tags: ['SKKN', 'Chuyên đề', 'NEW']
+    },
+    {
+        id: 'tro-ly-minh-hoa-toan',
+        name: 'TRỢ LÝ TẠO MINH HỌA TOÁN HỌC',
+        description: 'Đưa đề bài vào dạng ảnh hoặc gõ đề bài, tool sẽ tạo minh họa dạng thực tế và dạng sách giáo khoa.',
+        image_url: '/1.png',
+        url: 'https://chatgpt.com/g/g-6a2602d8ebfc819189c0199191321aec-tro-ly-tao-minh-hoa-toan-hoc',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Toán', 'Minh họa', 'GPTs']
+    },
+    {
+        id: 'tool-chu-viet-tay',
+        name: 'TOOL TẠO ẢNH CHỮ VIẾT TAY',
+        description: 'Đưa văn bản, tool sẽ tạo ra ảnh có chữ viết tay viết trên nền giấy.',
+        image_url: '/4.png',
+        url: 'https://chatgpt.com/g/g-67611bd3b1348191b292e76fcdffdafb-tao-anh-chu-viet-tay',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Chữ viết tay', 'Ảnh', 'GPTs']
+    },
+    {
+        id: 'tool-ve-ban-do-tu-duy',
+        name: 'TOOL VẼ BẢN ĐỒ TƯ DUY',
+        description: 'Đưa 1 bài học vào để sơ đồ hóa kiến thức tạo bản đồ tư duy.',
+        image_url: '/2.png',
+        url: 'https://chatgpt.com/g/g-673b64bc7d6c8191a03e67dc7889ce46-tro-ly-ve-ban-do-tu-duy-sieu-nanh',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Bản đồ tư duy', 'Sơ đồ', 'GPTs']
+    },
+    {
+        id: 'tool-giai-toan',
+        name: 'TOOL GIẢI TOÁN ẢNH / PDF',
+        description: 'Đưa ảnh hoặc PDF vào để giải toán',
+        image_url: '/3.png',
+        url: 'https://chatgpt.com/g/g-6751c14ab6d88191a3cd32d43ed0b4d4-tro-ly-giai-toan',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Giải toán', 'PDF', 'GPTs']
+    },
+    {
+        id: 'tro-ly-kiem-tra-loi',
+        name: 'TRỢ LÝ KIỂM TRA LỖI TÀI LIỆU',
+        description: 'Kiểm tra lỗi và đề xuất sửa lại tài liệu.',
+        image_url: '/5.png',
+        url: 'https://chatgpt.com/g/g-674eecc0f474819199d34dafa6a378d3-tro-ly-kiem-tra-chinh-ta',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Kiểm tra lỗi', 'Tài liệu', 'GPTs']
+    },
+    {
+        id: 'tro-ly-tao-thiep',
+        name: 'TRỢ LÝ TẠO THIỆP CHÚC MỪNG',
+        description: 'Tạo thiệp chúc mừng, tạo ảnh, banner.',
+        image_url: '/6.png',
+        url: 'https://chatgpt.com/g/g-67372cf934108191b48b990089f07820-tro-ly-tao-thiep-chuc-mung-banner',
+        category: 'BỘ TRỢ LÝ AI',
+        tags: ['Thiệp', 'Banner', 'GPTs']
+    },
     // --- CÔNG CỤ TỪ FILE BỔ SUNG ---
     {
         id: 'chatgpt',
