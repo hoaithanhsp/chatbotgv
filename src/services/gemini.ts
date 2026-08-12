@@ -1,6 +1,10 @@
 import { GoogleGenAI } from '@google/genai';
 
+export type AiProvider = 'gemini' | 'agent-platform';
+
 let _genAI: GoogleGenAI | null = null;
+let _currentProvider: AiProvider | null = null;
+let _currentKey: string | null = null;
 
 export const GOOGLE_AI_API_KEY_PATTERN = /^(?:AIzaSy|AQ)\S{8,}$/;
 
@@ -10,16 +14,26 @@ export const isValidGoogleAiApiKey = (key: string): boolean => {
     return GOOGLE_AI_API_KEY_PATTERN.test(normalizeGoogleAiApiKey(key));
 };
 
-const getGenAI = (): GoogleGenAI | null => {
-    if (_genAI) return _genAI;
-    const key = normalizeGoogleAiApiKey(localStorage.getItem('gemini_api_key') || '');
-    if (!key) return null;
-    if (!isValidGoogleAiApiKey(key)) {
-        throw new Error('API Key Google AI không hợp lệ. Key mới bắt đầu bằng AQ..., key cũ bắt đầu bằng AIzaSy...');
+export const createGoogleAiClient = (apiKey: string, provider: AiProvider): GoogleGenAI => {
+    if (provider === 'agent-platform') {
+        return new GoogleGenAI({ vertexai: true, apiKey });
     }
-    _genAI = new GoogleGenAI({ apiKey: key });
-    return _genAI;
+    return new GoogleGenAI({ apiKey });
 };
+
+export const getProvider = (): AiProvider => {
+    const p = localStorage.getItem('google_ai_provider');
+    return (p === 'agent-platform') ? 'agent-platform' : 'gemini';
+};
+
+export const setProvider = (provider: AiProvider) => {
+    localStorage.setItem('google_ai_provider', provider);
+    localStorage.setItem('google_ai_provider_selection_source', 'manual');
+    _genAI = null;
+};
+
+export const getGeminiApiKey = () => localStorage.getItem('gemini_api_key');
+export const getAgentPlatformApiKey = () => localStorage.getItem('agent_platform_api_key');
 
 export const setGeminiApiKey = (key: string) => {
     const normalized = normalizeGoogleAiApiKey(key);
@@ -27,42 +41,94 @@ export const setGeminiApiKey = (key: string) => {
         throw new Error('API Key Google AI không hợp lệ. Hãy dùng key bắt đầu bằng AQ... hoặc AIzaSy...');
     }
     localStorage.setItem('gemini_api_key', normalized);
-    _genAI = null;
+    if (getProvider() === 'gemini') _genAI = null;
 };
 
-export const getGeminiApiKey = () => localStorage.getItem('gemini_api_key');
+export const setAgentPlatformApiKey = (key: string) => {
+    const normalized = normalizeGoogleAiApiKey(key);
+    if (normalized && !isValidGoogleAiApiKey(normalized)) {
+        throw new Error('API Key Google AI không hợp lệ. Hãy dùng key bắt đầu bằng AQ... hoặc AIzaSy...');
+    }
+    localStorage.setItem('agent_platform_api_key', normalized);
+    if (getProvider() === 'agent-platform') _genAI = null;
+};
+
+export const getGenAI = (): GoogleGenAI | null => {
+    const provider = getProvider();
+    const key = provider === 'agent-platform' ? getAgentPlatformApiKey() : getGeminiApiKey();
+    const normalizedKey = normalizeGoogleAiApiKey(key || '');
+    
+    if (!normalizedKey) return null;
+    if (!isValidGoogleAiApiKey(normalizedKey)) {
+        throw new Error('API Key không hợp lệ. Key mới bắt đầu bằng AQ..., key cũ bắt đầu bằng AIzaSy...');
+    }
+    
+    if (_genAI && _currentProvider === provider && _currentKey === normalizedKey) {
+        return _genAI;
+    }
+    
+    _genAI = createGoogleAiClient(normalizedKey, provider);
+    _currentProvider = provider;
+    _currentKey = normalizedKey;
+    return _genAI;
+};
 
 // =============================================
-// MODEL LIST - Google GenAI SDK / Gemini API
-// Keep the user's selected model first, then fall back through this stable list.
+// MODEL LIST
 // =============================================
-const MODELS = [
+export const MODELS = [
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+] as const;
+
+export const AGENT_PLATFORM_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
-    'gemini-3.5-flash',
     'gemini-2.5-pro',
-];
+    'gemini-3.1-pro-preview',
+] as const;
 
-const DEFAULT_MODEL = MODELS[0];
+export const AGENT_PLATFORM_FALLBACK_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+] as const;
+
+export const getAvailableModels = (): string[] => {
+    return getProvider() === 'agent-platform' ? [...AGENT_PLATFORM_MODELS] : [...MODELS];
+};
+
+const DEFAULT_GEMINI_MODEL = MODELS[0];
+const DEFAULT_AGENT_PLATFORM_MODEL = AGENT_PLATFORM_MODELS[0];
 
 let _selectedModel: string | null = null;
 
 export const getSelectedModel = (): string => {
-    const stored = _selectedModel || localStorage.getItem('selected_model') || DEFAULT_MODEL;
-    return MODELS.includes(stored) ? stored : DEFAULT_MODEL;
+    const stored = _selectedModel || localStorage.getItem('selected_model');
+    const availableModels = getAvailableModels();
+    
+    if (stored && availableModels.includes(stored as any)) {
+        return stored;
+    }
+    
+    return getProvider() === 'agent-platform' ? DEFAULT_AGENT_PLATFORM_MODEL : DEFAULT_GEMINI_MODEL;
 };
 
 export const setSelectedModel = (model: string) => {
-    const nextModel = MODELS.includes(model) ? model : DEFAULT_MODEL;
+    const availableModels = getAvailableModels();
+    const nextModel = availableModels.includes(model as any) 
+        ? model 
+        : (getProvider() === 'agent-platform' ? DEFAULT_AGENT_PLATFORM_MODEL : DEFAULT_GEMINI_MODEL);
+        
     _selectedModel = nextModel;
     localStorage.setItem('selected_model', nextModel);
 };
 
-export const getAvailableModels = () => MODELS;
-
 export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
 
-export type GeminiApiErrorType = 'QUOTA_EXCEEDED' | 'MODEL_OVERLOADED' | 'INVALID_API_KEY' | 'UNKNOWN';
+export type GeminiApiErrorType = 'QUOTA_EXCEEDED' | 'MODEL_OVERLOADED' | 'INVALID_API_KEY' | 'UNKNOWN' | 'NOT_FOUND';
 
 const stringifyError = (error: any): string => {
     const message = error?.message || error?.toString?.() || String(error);
@@ -93,7 +159,11 @@ export const parseApiError = (error: any): GeminiApiErrorType => {
         text.includes('unavailable') ||
         text.includes('high demand') ||
         text.includes('overloaded') ||
-        text.includes('try again later')
+        text.includes('try again later') ||
+        text.includes('500') ||
+        text.includes('504') ||
+        text.includes('deadline_exceeded') ||
+        text.includes('temporarily unavailable')
     ) {
         return 'MODEL_OVERLOADED';
     }
@@ -107,15 +177,32 @@ export const parseApiError = (error: any): GeminiApiErrorType => {
     ) {
         return 'INVALID_API_KEY';
     }
+    
+    if (text.includes('404') || text.includes('not_found')) {
+        return 'NOT_FOUND';
+    }
 
     return 'UNKNOWN';
 };
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const getOrderedModels = (selectedModel?: string): string[] => {
-    const selected = selectedModel && MODELS.includes(selectedModel) ? selectedModel : getSelectedModel();
-    return [selected, ...MODELS.filter(model => model !== selected)];
+export const getOrderedModels = (selectedModel?: string): string[] => {
+    const provider = getProvider();
+    const availableModels = getAvailableModels();
+    
+    let selected = selectedModel || getSelectedModel();
+    if (!availableModels.includes(selected as any)) {
+        selected = provider === 'agent-platform' ? DEFAULT_AGENT_PLATFORM_MODEL : DEFAULT_GEMINI_MODEL;
+    }
+    
+    let fallbacks = availableModels.filter(m => m !== selected);
+    
+    if (provider === 'agent-platform') {
+        fallbacks = fallbacks.filter(m => AGENT_PLATFORM_FALLBACK_MODELS.includes(m as any));
+    }
+    
+    return [selected, ...fallbacks];
 };
 
 // =============================================
@@ -126,6 +213,7 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
     if (!genAI) throw new Error('API Key chưa được nhập. Vui lòng vào Cài đặt để nhập API Key.');
 
     const orderedModels = getOrderedModels();
+    const provider = getProvider();
     let lastError: any = null;
     let sawQuotaError = false;
     let sawOverloadError = false;
@@ -145,12 +233,13 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
     for (let i = 0; i < orderedModels.length; i++) {
         const modelName = orderedModels[i];
         try {
-            console.log(`[Gemini] Trying model: ${modelName}`);
+            console.log(`[Gemini] Trying model: ${modelName} via ${provider}`);
             const response = await genAI.models.generateContent({
                 model: modelName,
                 contents,
                 config: {
-                    maxOutputTokens: 8192,
+                    maxOutputTokens: 12288,
+                    thinkingConfig: { thinkingLevel: 'HIGH' }
                 },
             });
 
@@ -165,16 +254,24 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
             lastError = error;
 
             if (errorType === 'INVALID_API_KEY') {
-                throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API. Vui lòng kiểm tra lại API Key trong Cài đặt.');
+                if (provider === 'agent-platform') {
+                    if (i === orderedModels.length - 1) {
+                        throw new Error('Google đã nhận key nhưng dự án chưa được cấp quyền gọi Agent Platform API hoặc model này. Vui lòng kiểm tra lại quyền truy cập hoặc chọn model khác.');
+                    }
+                } else {
+                    throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API. Vui lòng kiểm tra lại API Key trong Cài đặt.');
+                }
             }
 
             if (errorType === 'QUOTA_EXCEEDED') {
                 sawQuotaError = true;
-            } else if (errorType === 'MODEL_OVERLOADED') {
+            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND') {
                 sawOverloadError = true;
             } else {
-                sawUnknownError = true;
+                if (errorType !== 'INVALID_API_KEY') sawUnknownError = true;
             }
+
+            if (errorType === 'UNKNOWN') throw error;
 
             if (i < orderedModels.length - 1) {
                 await delay(errorType === 'QUOTA_EXCEEDED' ? 2000 : 1000);
@@ -184,7 +281,7 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
 
     if (sawOverloadError && !sawUnknownError) {
         throw new Error(
-            'Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn model nhẹ hơn như Gemini 2.5 Flash-Lite.'
+            'Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn model dự phòng nhẹ hơn.'
         );
     }
 
