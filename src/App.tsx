@@ -108,7 +108,6 @@ function App() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [pendingInput, setPendingInput] = useState('');
-  const [pendingFiles, setPendingFiles] = useState<FileAttachment[]>([]);
   const [templateCategory, setTemplateCategory] = useState('');
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
