@@ -116,6 +116,21 @@ const generateText = async (modelName: string, prompt: string, _temperature?: nu
     });
     return result.text || "";
 };
+
+export const analyzeSKKN = async (
+    fullText: string,
+    onProgress?: (msg: string) => void
+): Promise<AnalysisMetrics> => {
+    onProgress?.('Đang chuẩn bị dữ liệu phân tích...');
+    const scoringContext = SCORING_CRITERIA.map(c => `- ${c.name}: ${c.description} (Tối đa: ${c.maxScore}đ)`).join('\n');
+    const clicheList = CLICHE_PHRASES.join(', ');
+
+    // Truncate text if too long (rough limit to avoid token overflow)
+    const truncated = fullText.length > 50000 ? fullText.substring(0, 50000) + '...[TRUNCATED]' : fullText;
+
+    onProgress?.('Đang phân tích SKKN bằng AI (vui lòng đợi 30-60s)...');
+    
+    const prompt = `
     Bạn là chuyên gia thẩm định Sáng kiến Kinh nghiệm (SKKN) cấp Bộ với 20 năm kinh nghiệm. Hãy phân tích CHUYÊN SÂU văn bản SKKN sau.
     
     TIÊU CHÍ CHẤM SKKN (theo Nghị định 13/2012/NĐ-CP):
