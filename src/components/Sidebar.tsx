@@ -34,6 +34,10 @@ interface SidebarProps {
     onMoveToFolder?: (chatId: string, folder: string) => void;
     onTogglePin?: (chatId: string) => void;
     onShowPreferences?: () => void;
+    onOpenLessonPlan?: () => void;
+    onOpenQuizMatrix?: () => void;
+    onOpenGamification?: () => void;
+    onOpenSlideOutline?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,6 +59,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onMoveToFolder,
     onTogglePin,
     onShowPreferences,
+    onOpenLessonPlan,
+    onOpenQuizMatrix,
+    onOpenGamification,
+    onOpenSlideOutline,
 }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -326,6 +334,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <p>{searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có lịch sử trò chuyện'}</p>
                     </div>
                 )}
+            </div>
+
+            {/* Công cụ chuyên biệt */}
+            <div className="px-3 py-2 border-t border-teal-50/50">
+                <h4 className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">⚡ Công cụ</h4>
+                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                    <button onClick={onOpenLessonPlan} className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-gray-600 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition-all">
+                        <span>🎓</span> Giáo án
+                    </button>
+                    <button onClick={onOpenQuizMatrix} className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition-all">
+                        <span>📋</span> Đề thi
+                    </button>
+                    <button onClick={onOpenGamification} className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-gray-600 hover:text-orange-700 hover:bg-orange-50 rounded-xl transition-all">
+                        <span>🎮</span> Trò chơi
+                    </button>
+                    <button onClick={onOpenSlideOutline} className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-gray-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all">
+                        <span>🖥️</span> Slide
+                    </button>
+                </div>
             </div>
 
             {/* Footer Nav */}

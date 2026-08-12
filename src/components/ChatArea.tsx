@@ -60,9 +60,13 @@ interface ChatAreaProps {
     onPendingInputConsumed?: () => void;
     onRegenerate?: (messageId: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
+    onOpenLessonPlan?: () => void;
+    onOpenQuizMatrix?: () => void;
+    onOpenGamification?: () => void;
+    onOpenSlideOutline?: () => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates, onOpenTemplatesWithCategory, pendingInput, onPendingInputConsumed, onRegenerate, onFeedback }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMessage, userName, onBookmark, onOpenTemplates, onOpenTemplatesWithCategory, pendingInput, onPendingInputConsumed, onRegenerate, onFeedback, onOpenLessonPlan, onOpenQuizMatrix, onOpenGamification, onOpenSlideOutline }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -436,6 +440,26 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isTyping, onSendMe
                                     <span className="text-sm text-slate-500 text-left leading-snug">{action.text}</span>
                                 </button>
                             ))}
+                        </div>
+
+                        {/* Công cụ chuyên biệt */}
+                        <div className="w-full max-w-4xl px-4 mt-6">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 text-center">⚡ Công cụ chuyên biệt</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {[
+                                    { icon: '🎓', title: 'Giáo án Chuẩn', desc: 'CV 5512, STEM, 5E, PBL', gradient: 'from-teal-500 to-emerald-500', onClick: onOpenLessonPlan },
+                                    { icon: '📋', title: 'Đề thi & Ma trận', desc: 'NB-TH-VD-VDC', gradient: 'from-purple-500 to-violet-500', onClick: onOpenQuizMatrix },
+                                    { icon: '🎮', title: 'Trò chơi lớp học', desc: 'Khởi động & nhóm', gradient: 'from-orange-500 to-amber-500', onClick: onOpenGamification },
+                                    { icon: '🖥️', title: 'Slide bài giảng', desc: 'Dàn ý chuyên nghiệp', gradient: 'from-blue-500 to-indigo-500', onClick: onOpenSlideOutline },
+                                ].map((tool, idx) => (
+                                    <button key={idx} onClick={tool.onClick} className="group relative flex flex-col items-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                                        <span className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-200">{tool.icon}</span>
+                                        <span className="text-sm font-bold text-gray-800 text-center">{tool.title}</span>
+                                        <span className="text-[10px] text-gray-400 mt-0.5">{tool.desc}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Templates CTA */}

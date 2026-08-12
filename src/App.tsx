@@ -10,6 +10,10 @@ import { PromptTemplatePanel } from './components/PromptTemplatePanel';
 import { DashboardModal } from './components/DashboardModal';
 import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import SKKNEditorApp from './skkn/SKKNEditorApp';
+import { LessonPlanBuilder } from './components/LessonPlanBuilder';
+import { QuizMatrixGenerator } from './components/QuizMatrixGenerator';
+import { GamificationEngine } from './components/GamificationEngine';
+import { SlideOutlineGenerator } from './components/SlideOutlineGenerator';
 import { generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import type { GeminiPart } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
@@ -112,6 +116,10 @@ function App() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSKKNEditor, setShowSKKNEditor] = useState(false);
+  const [showLessonPlan, setShowLessonPlan] = useState(false);
+  const [showQuizMatrix, setShowQuizMatrix] = useState(false);
+  const [showGamification, setShowGamification] = useState(false);
+  const [showSlideOutline, setShowSlideOutline] = useState(false);
 
   // Initialize dark mode on mount
   useEffect(() => {
@@ -753,6 +761,10 @@ function App() {
             onFolderFilterChange={setFolderFilter}
             onMoveToFolder={handleMoveToFolder}
             onTogglePin={handleTogglePin}
+            onOpenLessonPlan={() => setShowLessonPlan(true)}
+            onOpenQuizMatrix={() => setShowQuizMatrix(true)}
+            onOpenGamification={() => setShowGamification(true)}
+            onOpenSlideOutline={() => setShowSlideOutline(true)}
           />
         </div>
 
@@ -795,6 +807,10 @@ function App() {
               onFolderFilterChange={setFolderFilter}
               onMoveToFolder={handleMoveToFolder}
               onTogglePin={handleTogglePin}
+              onOpenLessonPlan={() => { setShowLessonPlan(true); setSidebarOpen(false); }}
+              onOpenQuizMatrix={() => { setShowQuizMatrix(true); setSidebarOpen(false); }}
+              onOpenGamification={() => { setShowGamification(true); setSidebarOpen(false); }}
+              onOpenSlideOutline={() => { setShowSlideOutline(true); setSidebarOpen(false); }}
             />
           </div>
         )}
@@ -815,6 +831,10 @@ function App() {
                 pendingInput={pendingInput}
                 onPendingInputConsumed={() => setPendingInput('')}
                 onRegenerate={handleRegenerate}
+                onOpenLessonPlan={() => setShowLessonPlan(true)}
+                onOpenQuizMatrix={() => setShowQuizMatrix(true)}
+                onOpenGamification={() => setShowGamification(true)}
+                onOpenSlideOutline={() => setShowSlideOutline(true)}
               />
             )}
           </div>
@@ -855,6 +875,11 @@ function App() {
           setPendingInput(prompt);
         }}
       />
+
+      <LessonPlanBuilder isOpen={showLessonPlan} onClose={() => setShowLessonPlan(false)} onSubmit={(prompt) => { setShowLessonPlan(false); setPendingInput(prompt); }} />
+      <QuizMatrixGenerator isOpen={showQuizMatrix} onClose={() => setShowQuizMatrix(false)} onSubmit={(prompt) => { setShowQuizMatrix(false); setPendingInput(prompt); }} />
+      <GamificationEngine isOpen={showGamification} onClose={() => setShowGamification(false)} onSubmit={(prompt) => { setShowGamification(false); setPendingInput(prompt); }} />
+      <SlideOutlineGenerator isOpen={showSlideOutline} onClose={() => setShowSlideOutline(false)} onSubmit={(prompt) => { setShowSlideOutline(false); setPendingInput(prompt); }} />
 
       <DashboardModal
         isOpen={showDashboard}
