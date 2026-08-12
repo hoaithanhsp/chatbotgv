@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Eye, EyeOff, Presentation } from 'lucide-react';
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '../data/teacherFeatures';
+import { FileAttachmentWidget } from './FileAttachmentWidget';
+import type { FileAttachment } from '../types';
 
 interface SlideOutlineGeneratorProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (prompt: string) => void;
+    onSubmit: (prompt: string, files?: FileAttachment[]) => void;
 }
 
 const STYLES = [
@@ -27,6 +29,7 @@ export const SlideOutlineGenerator: React.FC<SlideOutlineGeneratorProps> = ({ is
     const [hasAnimation, setHasAnimation] = useState(false);
     const [notes, setNotes] = useState('');
     const [showPreview, setShowPreview] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
 
     const buildPrompt = () => {
         const st = STYLES.find(s => s.id === style);
@@ -45,6 +48,9 @@ export const SlideOutlineGenerator: React.FC<SlideOutlineGeneratorProps> = ({ is
         p += `- Slide 3-${parseInt(slideCount)-2}: Nội dung chính\n`;
         p += `- Slide ${parseInt(slideCount)-1}: Tổng kết / Sơ đồ tư duy\n`;
         p += `- Slide ${slideCount}: Bài tập / Câu hỏi ôn tập\n`;
+        if (attachedFiles.length > 0) {
+            p += `\n## 📎 TÀI LIỆU THAM KHẢO:\nCó ${attachedFiles.length} file đính kèm (${attachedFiles.map(f => f.name).join(', ')}). Hãy dựa vào nội dung tài liệu để xây dựng slide chính xác, đầy đủ kiến thức.\n`;
+        }
         if (notes.trim()) p += `\nGhi chú: ${notes}\n`;
         p += '\nViết CHI TIẾT nội dung từng slide. Format Markdown đẹp, dễ copy vào PowerPoint/Google Slides.';
         return p;
@@ -52,11 +58,12 @@ export const SlideOutlineGenerator: React.FC<SlideOutlineGeneratorProps> = ({ is
 
     const handleSubmit = () => {
         if (!subject || !grade || !lessonName.trim()) return;
-        onSubmit(buildPrompt());
+        onSubmit(buildPrompt(), attachedFiles.length > 0 ? attachedFiles : undefined);
         onClose();
         setSubject(''); setGrade(''); setLessonName(''); setSlideCount('10');
         setStyle('minimalist'); setHasInteractive(true); setHasImages(true);
         setHasSpeakerNotes(false); setHasAnimation(false); setNotes(''); setShowPreview(false);
+        setAttachedFiles([]);
     };
 
     if (!isOpen) return null;
@@ -124,6 +131,7 @@ export const SlideOutlineGenerator: React.FC<SlideOutlineGeneratorProps> = ({ is
                             ))}
                         </div>
                     </div>
+                    <FileAttachmentWidget files={attachedFiles} onFilesChange={setAttachedFiles} accentColor="blue" />
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Ghi chú</label>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="VD: Thêm phần thí nghiệm ảo..." rows={2} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500" />

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Eye, EyeOff, ClipboardList } from 'lucide-react';
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '../data/teacherFeatures';
+import { FileAttachmentWidget } from './FileAttachmentWidget';
+import type { FileAttachment } from '../types';
 
 interface QuizMatrixGeneratorProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (prompt: string) => void;
+    onSubmit: (prompt: string, files?: FileAttachment[]) => void;
 }
 
 const TIME_OPTIONS = ['15', '45', '60', '90', '120'];
@@ -30,6 +32,7 @@ export const QuizMatrixGenerator: React.FC<QuizMatrixGeneratorProps> = ({ isOpen
     const [levels, setLevels] = useState({ nb: 40, th: 30, vd: 20, vdc: 10 });
     const [notes, setNotes] = useState('');
     const [showPreview, setShowPreview] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
 
     const buildPrompt = () => {
         const typeInfo = QUIZ_TYPES.find(t => t.id === quizType);
@@ -45,6 +48,9 @@ export const QuizMatrixGenerator: React.FC<QuizMatrixGeneratorProps> = ({ isOpen
         if (hasSpec) extras.push('Bảng đặc tả chi tiết');
         if (hasAnswer) extras.push('Đáp án + hướng dẫn chấm');
         if (extras.length > 0) p += `\n## YÊU CẦU THÊM:\n${extras.map(e => `- ${e}`).join('\n')}\n`;
+        if (attachedFiles.length > 0) {
+            p += `\n## 📎 TÀI LIỆU THAM KHẢO:\nCó ${attachedFiles.length} file đính kèm (${attachedFiles.map(f => f.name).join(', ')}). Hãy dựa vào nội dung tài liệu đính kèm để tạo đề thi chính xác, phù hợp.\n`;
+        }
         if (notes.trim()) p += `\nGhi chú: ${notes}\n`;
         p += '\nViết ĐẦY ĐỦ toàn bộ câu hỏi, đáp án. Format Markdown đẹp, bảng rõ ràng.';
         return p;
@@ -52,12 +58,13 @@ export const QuizMatrixGenerator: React.FC<QuizMatrixGeneratorProps> = ({ isOpen
 
     const handleSubmit = () => {
         if (!subject || !grade) return;
-        onSubmit(buildPrompt());
+        onSubmit(buildPrompt(), attachedFiles.length > 0 ? attachedFiles : undefined);
         onClose();
         setSubject(''); setGrade(''); setTime('45'); setQuizType('tn-tl');
         setTnCount('28'); setTlCount('4'); setContent(''); setNotes('');
         setHasMatrix(true); setHasSpec(true); setHasAnswer(true);
         setLevels({ nb: 40, th: 30, vd: 20, vdc: 10 }); setShowPreview(false);
+        setAttachedFiles([]);
     };
 
     if (!isOpen) return null;
@@ -148,6 +155,7 @@ export const QuizMatrixGenerator: React.FC<QuizMatrixGeneratorProps> = ({ isOpen
                             ))}
                         </div>
                     </div>
+                    <FileAttachmentWidget files={attachedFiles} onFilesChange={setAttachedFiles} accentColor="purple" />
                     {showPreview && (
                         <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
                             <p className="text-xs font-semibold text-gray-500 mb-1">👁️ Prompt:</p>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Eye, EyeOff, Gamepad2 } from 'lucide-react';
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '../data/teacherFeatures';
+import { FileAttachmentWidget } from './FileAttachmentWidget';
+import type { FileAttachment } from '../types';
 
 interface GamificationEngineProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (prompt: string) => void;
+    onSubmit: (prompt: string, files?: FileAttachment[]) => void;
 }
 
 const GAME_TYPES = [
@@ -31,6 +33,7 @@ export const GamificationEngine: React.FC<GamificationEngineProps> = ({ isOpen, 
     const [canOnline, setCanOnline] = useState(false);
     const [notes, setNotes] = useState('');
     const [showPreview, setShowPreview] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
 
     const buildPrompt = () => {
         const gt = GAME_TYPES.find(t => t.id === gameType);
@@ -47,17 +50,21 @@ export const GamificationEngine: React.FC<GamificationEngineProps> = ({ isOpen, 
         p += `4. Cách tính điểm\n`;
         p += `5. Kết nối với nội dung bài học\n`;
         p += `6. Mẹo để trò chơi thành công\n`;
+        if (attachedFiles.length > 0) {
+            p += `\n## 📎 TÀI LIỆU THAM KHẢO:\nCó ${attachedFiles.length} file đính kèm (${attachedFiles.map(f => f.name).join(', ')}). Hãy dựa vào nội dung tài liệu để thiết kế trò chơi gắn liền với kiến thức bài học.\n`;
+        }
         if (notes.trim()) p += `\nGhi chú: ${notes}\n`;
         p += '\nViết chi tiết, sinh động, có thể áp dụng ngay. Format Markdown đẹp.';
         return p;
     };
 
     const handleSubmit = () => {
-        onSubmit(buildPrompt());
+        onSubmit(buildPrompt(), attachedFiles.length > 0 ? attachedFiles : undefined);
         onClose();
         setGameType('khoi-dong'); setSubject(''); setGrade(''); setLessonName('');
         setClassSize('35'); setDuration('5'); setCount('3');
         setNeedProps(false); setCanOnline(false); setNotes(''); setShowPreview(false);
+        setAttachedFiles([]);
     };
 
     if (!isOpen) return null;
@@ -133,6 +140,7 @@ export const GamificationEngine: React.FC<GamificationEngineProps> = ({ isOpen, 
                             💻 {canOnline ? 'Có online' : 'Chỉ offline'}
                         </button>
                     </div>
+                    <FileAttachmentWidget files={attachedFiles} onFilesChange={setAttachedFiles} accentColor="orange" />
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Ghi chú</label>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="VD: Lớp năng động, thích cạnh tranh..." rows={2} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-orange-500" />

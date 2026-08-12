@@ -108,6 +108,7 @@ function App() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTemplatePanel, setShowTemplatePanel] = useState(false);
   const [pendingInput, setPendingInput] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<FileAttachment[]>([]);
   const [templateCategory, setTemplateCategory] = useState('');
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -876,10 +877,10 @@ function App() {
         }}
       />
 
-      <LessonPlanBuilder isOpen={showLessonPlan} onClose={() => setShowLessonPlan(false)} onSubmit={(prompt) => { setShowLessonPlan(false); setPendingInput(prompt); }} />
-      <QuizMatrixGenerator isOpen={showQuizMatrix} onClose={() => setShowQuizMatrix(false)} onSubmit={(prompt) => { setShowQuizMatrix(false); setPendingInput(prompt); }} />
-      <GamificationEngine isOpen={showGamification} onClose={() => setShowGamification(false)} onSubmit={(prompt) => { setShowGamification(false); setPendingInput(prompt); }} />
-      <SlideOutlineGenerator isOpen={showSlideOutline} onClose={() => setShowSlideOutline(false)} onSubmit={(prompt) => { setShowSlideOutline(false); setPendingInput(prompt); }} />
+      <LessonPlanBuilder isOpen={showLessonPlan} onClose={() => setShowLessonPlan(false)} onSubmit={(prompt, files) => { setShowLessonPlan(false); if (files && files.length > 0) { handleSendMessage(prompt, files); } else { setPendingInput(prompt); } }} />
+      <QuizMatrixGenerator isOpen={showQuizMatrix} onClose={() => setShowQuizMatrix(false)} onSubmit={(prompt, files) => { setShowQuizMatrix(false); if (files && files.length > 0) { handleSendMessage(prompt, files); } else { setPendingInput(prompt); } }} />
+      <GamificationEngine isOpen={showGamification} onClose={() => setShowGamification(false)} onSubmit={(prompt, files) => { setShowGamification(false); if (files && files.length > 0) { handleSendMessage(prompt, files); } else { setPendingInput(prompt); } }} />
+      <SlideOutlineGenerator isOpen={showSlideOutline} onClose={() => setShowSlideOutline(false)} onSubmit={(prompt, files) => { setShowSlideOutline(false); if (files && files.length > 0) { handleSendMessage(prompt, files); } else { setPendingInput(prompt); } }} />
 
       <DashboardModal
         isOpen={showDashboard}

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Eye, EyeOff, BookOpen } from 'lucide-react';
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '../data/teacherFeatures';
+import { FileAttachmentWidget } from './FileAttachmentWidget';
+import type { FileAttachment } from '../types';
 
 interface LessonPlanBuilderProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (prompt: string) => void;
+    onSubmit: (prompt: string, files?: FileAttachment[]) => void;
 }
 
 const MODELS = [
@@ -32,6 +34,7 @@ export const LessonPlanBuilder: React.FC<LessonPlanBuilderProps> = ({ isOpen, on
     const [extras, setExtras] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     const [showPreview, setShowPreview] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
 
     const toggleExtra = (id: string) => {
         setExtras(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -47,6 +50,9 @@ export const LessonPlanBuilder: React.FC<LessonPlanBuilderProps> = ({ isOpen, on
         else p += 'PBL: Câu hỏi dẫn dắt, kế hoạch, phân nhóm, sản phẩm, rubric.\n';
         p += '\nYêu cầu: Mục tiêu (kiến thức, năng lực, phẩm chất), thiết bị, tiến trình CHI TIẾT (có thời gian).\n';
         if (extLabels.length > 0) p += `\nTích hợp thêm: ${extLabels.join(', ')}.\n`;
+        if (attachedFiles.length > 0) {
+            p += `\n📎 TÀI LIỆU THAM KHẢO: Có ${attachedFiles.length} file đính kèm (${attachedFiles.map(f => f.name).join(', ')}). Hãy phân tích nội dung tài liệu đính kèm để soạn giáo án chính xác và phù hợp nhất.\n`;
+        }
         if (notes.trim()) p += `\nGhi chú: ${notes}\n`;
         p += '\nViết HOÀN CHỈNH, chi tiết, format Markdown đẹp.';
         return p;
@@ -54,10 +60,11 @@ export const LessonPlanBuilder: React.FC<LessonPlanBuilderProps> = ({ isOpen, on
 
     const handleSubmit = () => {
         if (!subject || !grade || !lessonName.trim()) return;
-        onSubmit(buildPrompt());
+        onSubmit(buildPrompt(), attachedFiles.length > 0 ? attachedFiles : undefined);
         onClose();
         setSubject(''); setGrade(''); setLessonName(''); setPeriods('1');
         setModel('cv5512'); setExtras([]); setNotes(''); setShowPreview(false);
+        setAttachedFiles([]);
     };
 
     if (!isOpen) return null;
@@ -127,6 +134,12 @@ export const LessonPlanBuilder: React.FC<LessonPlanBuilderProps> = ({ isOpen, on
                             ))}
                         </div>
                     </div>
+                    {/* File Attachment */}
+                    <FileAttachmentWidget
+                        files={attachedFiles}
+                        onFilesChange={setAttachedFiles}
+                        accentColor="teal"
+                    />
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Ghi chú</label>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Yêu cầu riêng..." rows={2} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 resize-none" />
