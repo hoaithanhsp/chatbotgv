@@ -1,8 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
-import { AI_MODELS } from "../skknTypes";
 import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AIModelId } from "../skknTypes";
 import { buildKnowledgeContext, SCORING_CRITERIA, CLICHE_PHRASES, COMPARISON_TABLE_TEMPLATE } from "../knowledge-base";
-import { parseApiError } from "../../services/gemini";
+import { parseApiError, getGenAI, getOrderedModels, getProvider, getSelectedModel, setSelectedModel } from "../../services/gemini";
 
 const SchemaType = {
     OBJECT: 'object',
@@ -14,27 +12,7 @@ const SchemaType = {
 } as const;
 
 // --- API Key & Model Management ---
-const STORAGE_KEY_MODEL = 'skkn_editor_model';
-
-export const getApiKey = (): string | null => {
-    return localStorage.getItem('gemini_api_key');
-};
-
-export const getSelectedModel = (): AIModelId => {
-    const stored = localStorage.getItem(STORAGE_KEY_MODEL);
-    if (stored && AI_MODELS.some(m => m.id === stored)) return stored as AIModelId;
-    return AI_MODELS.find(m => m.default)?.id || 'gemini-2.5-flash';
-};
-
-export const setSelectedModel = (model: AIModelId): void => {
-    localStorage.setItem(STORAGE_KEY_MODEL, model);
-};
-
-const getGenAI = () => {
-    const apiKey = getApiKey();
-    if (!apiKey) throw new Error("API_KEY_MISSING");
-    return new GoogleGenAI({ apiKey: apiKey.trim() });
-};
+export { getSelectedModel, setSelectedModel };
 
 // --- Timeout wrapper ---
 const withTimeout = <T>(promise: Promise<T>, ms: number = 90000): Promise<T> => {
@@ -49,14 +27,9 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 90000): Promise<T> => 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // --- Fallback model chain ---
-const getModelChain = (): string[] => {
-    const selected = getSelectedModel();
-    const allModels = AI_MODELS.map(m => m.id);
-    return [selected, ...allModels.filter(m => m !== selected)];
-};
-
 const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T> => {
-    const chain = getModelChain();
+    const chain = getOrderedModels();
+    const provider = getProvider();
     let lastError: any = null;
     let sawQuotaError = false;
     let sawOverloadError = false;
@@ -65,7 +38,7 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
     for (let i = 0; i < chain.length; i++) {
         const model = chain[i];
         try {
-            console.log(`[SKKN] Trying model: ${model}`);
+            console.log(`[SKKN] Trying model: ${model} via ${provider}`);
             const result = await withTimeout(fn(model));
             console.log(`[SKKN] Success with model: ${model}`);
             return result;
@@ -73,17 +46,27 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
             lastError = error;
             const errorType = parseApiError(error);
             console.warn(`[SKKN] Model ${model} failed (${errorType}):`, error.message);
-            if (error.message === 'API_KEY_MISSING') throw error;
+            
             if (errorType === 'INVALID_API_KEY') {
-                throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API.');
+                if (provider === 'agent-platform') {
+                    if (i === chain.length - 1) {
+                        throw new Error('Google đã nhận key nhưng dự án chưa được cấp quyền gọi Agent Platform API hoặc model này.');
+                    }
+                } else {
+                    throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API.');
+                }
             }
+            
             if (errorType === 'QUOTA_EXCEEDED') {
                 sawQuotaError = true;
-            } else if (errorType === 'MODEL_OVERLOADED') {
+            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND') {
                 sawOverloadError = true;
             } else {
-                sawUnknownError = true;
+                if (errorType !== 'INVALID_API_KEY') sawUnknownError = true;
             }
+            
+            if (errorType === 'UNKNOWN') throw error;
+            
             if (i < chain.length - 1) {
                 await delay(errorType === 'QUOTA_EXCEEDED' ? 2000 : 1000);
             }
@@ -91,7 +74,7 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
     }
 
     if (sawOverloadError && !sawUnknownError) {
-        throw new Error('Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn Gemini 2.5 Flash-Lite.');
+        throw new Error('Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn model dự phòng nhẹ hơn.');
     }
 
     if (sawQuotaError && !sawUnknownError) {
@@ -102,15 +85,16 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
 };
 
 // --- Helper: Generate JSON content with structured output ---
-const generateJSON = async (modelName: string, prompt: string, schema: any, temperature: number = 0): Promise<any> => {
+const generateJSON = async (modelName: string, prompt: string, schema: any, _temperature?: number): Promise<any> => {
     const genAI = getGenAI();
+    if (!genAI) throw new Error("API_KEY_MISSING");
     const result = await genAI.models.generateContent({
         model: modelName,
         contents: prompt,
         config: {
-            temperature,
             responseMimeType: "application/json",
             responseSchema: schema,
+            thinkingConfig: { thinkingLevel: 'HIGH' }
         }
     });
     const text = result.text || '';
@@ -119,30 +103,19 @@ const generateJSON = async (modelName: string, prompt: string, schema: any, temp
 };
 
 // --- Helper: Generate text content ---
-const generateText = async (modelName: string, prompt: string, temperature: number = 0.3): Promise<string> => {
+const generateText = async (modelName: string, prompt: string, _temperature?: number): Promise<string> => {
     const genAI = getGenAI();
+    if (!genAI) throw new Error("API_KEY_MISSING");
     const result = await genAI.models.generateContent({
         model: modelName,
         contents: prompt,
         config: {
-            temperature,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 12288,
+            thinkingConfig: { thinkingLevel: 'HIGH' }
         }
     });
     return result.text || "";
 };
-
-// --- Analyze SKKN ---
-export const analyzeSKKN = async (text: string): Promise<{ analysis: AnalysisMetrics, currentTitle: string }> => {
-    const truncated = text.substring(0, 8000);
-
-    const scoringContext = Object.values(SCORING_CRITERIA).map(sc =>
-        `- ${sc.name} (${sc.maxScore}đ): ${sc.description}\n  Mức cao nhất: ${sc.levels[0].label}`
-    ).join('\n');
-
-    const clicheList = CLICHE_PHRASES.slice(0, 12).map(c => `"\"${c}\""`).join(', ');
-
-    const prompt = `
     Bạn là chuyên gia thẩm định Sáng kiến Kinh nghiệm (SKKN) cấp Bộ với 20 năm kinh nghiệm. Hãy phân tích CHUYÊN SÂU văn bản SKKN sau.
     
     TIÊU CHÍ CHẤM SKKN (theo Nghị định 13/2012/NĐ-CP):
