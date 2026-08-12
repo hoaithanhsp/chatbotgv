@@ -221,10 +221,11 @@ function App() {
     });
   }, [selectedDocIds, currentChatId]);
 
-  const handleSetupComplete = (apiKey: string, sbUrl: string, sbKey: string, newProfile: TeacherProfile) => {
-    setGeminiApiKey(apiKey);
-    if (sbUrl && sbKey) {
-      setSupabaseConfig(sbUrl, sbKey);
+  const handleSetupComplete = (supabaseUrl: string, supabaseKey: string, newProfile: TeacherProfile) => {
+    setProfile(newProfile);
+    localStorage.setItem('teacher_profile', JSON.stringify(newProfile));
+    if (supabaseUrl && supabaseKey) {
+      setSupabaseConfig(supabaseUrl, supabaseKey);
     }
     saveProfileService(newProfile);
     setProfile(newProfile);
@@ -831,8 +832,7 @@ function App() {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
-        onSave={(key, url, sbKey) => {
-          setGeminiApiKey(key);
+        onSave={(url, sbKey) => {
           if (url && sbKey) {
             setSupabaseConfig(url, sbKey);
           }
