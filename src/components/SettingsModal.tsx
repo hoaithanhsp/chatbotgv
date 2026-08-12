@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, Check } from 'lucide-react';
-import { 
+import {
     getAvailableModels, 
     getSelectedModel, 
     setSelectedModel, 
     getProvider, 
     setProvider, 
-    AiProvider,
     getGeminiApiKey,
     getAgentPlatformApiKey,
     setGeminiApiKey,
     setAgentPlatformApiKey
 } from '../services/gemini';
+import type { AiProvider } from '../services/gemini';
 
 interface SettingsModalProps {
     isOpen: boolean;

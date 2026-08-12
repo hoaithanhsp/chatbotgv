@@ -1,6 +1,7 @@
-import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements, AIModelId } from "../skknTypes";
+import type { AnalysisMetrics, TitleSuggestion, SectionSuggestion, SectionEditSuggestion, UserRequirements } from "../skknTypes";
 import { buildKnowledgeContext, SCORING_CRITERIA, CLICHE_PHRASES, COMPARISON_TABLE_TEMPLATE } from "../knowledge-base";
-import { parseApiError, getGenAI, getOrderedModels, getProvider, getSelectedModel, setSelectedModel } from "../../services/gemini";
+import { parseApiError, getGenAI, getOrderedModels, getProvider } from "../../services/gemini";
+import { ThinkingLevel } from '@google/genai';
 
 const SchemaType = {
     OBJECT: 'object',
@@ -12,7 +13,7 @@ const SchemaType = {
 } as const;
 
 // --- API Key & Model Management ---
-export { getSelectedModel, setSelectedModel };
+export { getSelectedModel, setSelectedModel, getApiKey } from "../../services/gemini";
 
 // --- Timeout wrapper ---
 const withTimeout = <T>(promise: Promise<T>, ms: number = 90000): Promise<T> => {
@@ -94,7 +95,7 @@ const generateJSON = async (modelName: string, prompt: string, schema: any, _tem
         config: {
             responseMimeType: "application/json",
             responseSchema: schema,
-            thinkingConfig: { thinkingLevel: 'HIGH' }
+            thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
         }
     });
     const text = result.text || '';
@@ -111,7 +112,7 @@ const generateText = async (modelName: string, prompt: string, _temperature?: nu
         contents: prompt,
         config: {
             maxOutputTokens: 12288,
-            thinkingConfig: { thinkingLevel: 'HIGH' }
+            thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
         }
     });
     return result.text || "";
@@ -120,9 +121,9 @@ const generateText = async (modelName: string, prompt: string, _temperature?: nu
 export const analyzeSKKN = async (
     fullText: string,
     onProgress?: (msg: string) => void
-): Promise<AnalysisMetrics> => {
+): Promise<{ analysis: AnalysisMetrics; currentTitle: string }> => {
     onProgress?.('Đang chuẩn bị dữ liệu phân tích...');
-    const scoringContext = SCORING_CRITERIA.map(c => `- ${c.name}: ${c.description} (Tối đa: ${c.maxScore}đ)`).join('\n');
+    const scoringContext = Object.values(SCORING_CRITERIA).map(c => `- ${c.name}: ${c.description} (Tối đa: ${c.maxScore}đ)`).join('\n');
     const clicheList = CLICHE_PHRASES.join(', ');
 
     // Truncate text if too long (rough limit to avoid token overflow)
@@ -756,6 +757,7 @@ ${sectionContent}
 
     return callWithFallback(async (model) => {
         const genAI = getGenAI();
+        if (!genAI) throw new Error("API_KEY_MISSING");
         const result = await genAI.models.generateContent({
             model,
             contents: prompt,

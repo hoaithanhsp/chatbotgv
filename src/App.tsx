@@ -10,7 +10,7 @@ import { PromptTemplatePanel } from './components/PromptTemplatePanel';
 import { DashboardModal } from './components/DashboardModal';
 import { OnboardingTour, shouldShowOnboarding } from './components/OnboardingTour';
 import SKKNEditorApp from './skkn/SKKNEditorApp';
-import { setGeminiApiKey, generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
+import { generateResponse, getGeminiApiKey, getAvailableModels, getSelectedModel, setSelectedModel } from './services/gemini';
 import type { GeminiPart } from './services/gemini';
 import { setSupabaseConfig, getTeacherProfile, saveTeacherProfile as saveProfileService } from './services/supabase';
 import { getCurrentUser, logout as authLogout } from './services/authService';

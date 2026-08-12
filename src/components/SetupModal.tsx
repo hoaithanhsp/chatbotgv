@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { TeacherProfile } from '../types';
 import { ExternalLink, Key, Sparkles, User } from 'lucide-react';
-import { setProvider, AiProvider, setGeminiApiKey, setAgentPlatformApiKey } from '../services/gemini';
+import { setProvider, setGeminiApiKey, setAgentPlatformApiKey } from '../services/gemini';
+import type { AiProvider } from '../services/gemini';
 
 interface SetupModalProps {
     onSubmit: (supabaseUrl: string, supabaseKey: string, profile: TeacherProfile) => void;

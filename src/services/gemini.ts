@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 export type AiProvider = 'gemini' | 'agent-platform';
 
@@ -34,6 +34,7 @@ export const setProvider = (provider: AiProvider) => {
 
 export const getGeminiApiKey = () => localStorage.getItem('gemini_api_key');
 export const getAgentPlatformApiKey = () => localStorage.getItem('agent_platform_api_key');
+export const getApiKey = () => getProvider() === 'agent-platform' ? getAgentPlatformApiKey() : getGeminiApiKey();
 
 export const setGeminiApiKey = (key: string) => {
     const normalized = normalizeGoogleAiApiKey(key);
@@ -239,7 +240,7 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
                 contents,
                 config: {
                     maxOutputTokens: 12288,
-                    thinkingConfig: { thinkingLevel: 'HIGH' }
+                    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
                 },
             });
 
