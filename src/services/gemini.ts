@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { SYSTEM_INSTRUCTION } from '../data/systemInstruction';
 
 export type AiProvider = 'gemini' | 'agent-platform';
 
@@ -240,7 +241,8 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
                 contents,
                 config: {
                     maxOutputTokens: 12288,
-                    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+                    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
+                    systemInstruction: SYSTEM_INSTRUCTION
                 },
             });
 
