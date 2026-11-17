@@ -39,34 +39,29 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
     for (let i = 0; i < chain.length; i++) {
         const model = chain[i];
         try {
-            console.log(`[SKKN] Trying model: ${model} via ${provider}`);
             const result = await withTimeout(fn(model));
-            console.log(`[SKKN] Success with model: ${model}`);
             return result;
         } catch (error: any) {
             lastError = error;
             const errorType = parseApiError(error);
-            console.warn(`[SKKN] Model ${model} failed (${errorType}):`, error.message);
+            const status = (error?.status || error?.code || error?.response?.status || '').toString();
+            const message = `${error?.message || error || ''}`.toLowerCase();
+            const isUnavailable = ['503', '502', '504'].includes(status) || /unavailable|overloaded|temporarily unavailable|deadline_exceeded|try again later|high demand/.test(message);
+            console.warn(`[SKKN] Model ${model} failed (${errorType})`);
             
             if (errorType === 'INVALID_API_KEY') {
-                if (provider === 'agent-platform') {
-                    if (i === chain.length - 1) {
-                        throw new Error('Google đã nhận key nhưng dự án chưa được cấp quyền gọi Agent Platform API hoặc model này.');
-                    }
-                } else {
-                    throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API.');
-                }
+                throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API.');
             }
             
             if (errorType === 'QUOTA_EXCEEDED') {
                 sawQuotaError = true;
-            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND') {
+            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND' || isUnavailable) {
                 sawOverloadError = true;
             } else {
-                if (errorType !== 'INVALID_API_KEY') sawUnknownError = true;
+                sawUnknownError = true;
             }
             
-            if (errorType === 'UNKNOWN') throw error;
+            if (errorType === 'UNKNOWN' && !isUnavailable) throw error;
             
             if (i < chain.length - 1) {
                 await delay(errorType === 'QUOTA_EXCEEDED' ? 2000 : 1000);
@@ -75,11 +70,11 @@ const callWithFallback = async <T>(fn: (model: string) => Promise<T>): Promise<T
     }
 
     if (sawOverloadError && !sawUnknownError) {
-        throw new Error('Các model Gemini đang tạm quá tải. API Key vẫn hợp lệ, vui lòng thử lại sau ít phút hoặc chọn model dự phòng nhẹ hơn.');
+        throw new Error('Model Gemini đang tạm lỗi máy chủ hoặc quá tải. Hệ thống đã thử model dự phòng; vui lòng thử lại sau ít phút.');
     }
 
     if (sawQuotaError && !sawUnknownError) {
-        throw new Error('API Key đã hết quota hoặc bị giới hạn tốc độ. Hãy tạo auth key mới tại Google AI Studio hoặc thử lại sau.');
+        throw new Error('API Key đã hết quota hoặc bị giới hạn tốc độ trong thời gian ngắn. Hãy chờ một lúc rồi thử lại.');
     }
 
     throw lastError;
