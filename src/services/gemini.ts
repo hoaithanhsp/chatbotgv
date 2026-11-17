@@ -79,23 +79,23 @@ export const getGenAI = (): GoogleGenAI | null => {
 // MODEL LIST
 // =============================================
 export const MODELS = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.5-flash-lite',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
-    'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
 ] as const;
 
 export const AGENT_PLATFORM_MODELS = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-pro',
-    'gemini-3.1-pro-preview',
-] as const;
-
-export const AGENT_PLATFORM_FALLBACK_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
 ] as const;
 
 export const getAvailableModels = (): string[] => {
@@ -192,19 +192,23 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const getOrderedModels = (selectedModel?: string): string[] => {
     const provider = getProvider();
     const availableModels = getAvailableModels();
+    const fallbackChain = [
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash',
+    ];
     
     let selected = selectedModel || getSelectedModel();
     if (!availableModels.includes(selected as any)) {
         selected = provider === 'agent-platform' ? DEFAULT_AGENT_PLATFORM_MODEL : DEFAULT_GEMINI_MODEL;
     }
     
-    let fallbacks = availableModels.filter(m => m !== selected);
-    
-    if (provider === 'agent-platform') {
-        fallbacks = fallbacks.filter(m => AGENT_PLATFORM_FALLBACK_MODELS.includes(m as any));
-    }
-    
-    return [selected, ...fallbacks];
+    const ordered = [selected, ...fallbackChain.filter(m => m !== selected && availableModels.includes(m))];
+    return ordered;
 };
 
 // =============================================
@@ -235,20 +239,26 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
     for (let i = 0; i < orderedModels.length; i++) {
         const modelName = orderedModels[i];
         try {
-            console.log(`[Gemini] Trying model: ${modelName} via ${provider}`);
+            const isGemini3 = /^gemini-3\./.test(modelName);
+            const config: any = {
+                maxOutputTokens: 12288,
+                systemInstruction: SYSTEM_INSTRUCTION,
+            };
+            if (isGemini3) {
+                config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH };
+            } else {
+                config.temperature = 0.2;
+                config.topP = 0.95;
+                config.topK = 40;
+            }
             const response = await genAI.models.generateContent({
                 model: modelName,
                 contents,
-                config: {
-                    maxOutputTokens: 12288,
-                    thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
-                    systemInstruction: SYSTEM_INSTRUCTION
-                },
+                config,
             });
 
             const text = response.text || '';
             if (text) {
-                console.log(`[Gemini] Success with model: ${modelName}`);
                 return text;
             }
         } catch (error: any) {
@@ -257,24 +267,22 @@ export const generateResponse = async (history: { role: string; parts: GeminiPar
             lastError = error;
 
             if (errorType === 'INVALID_API_KEY') {
-                if (provider === 'agent-platform') {
-                    if (i === orderedModels.length - 1) {
-                        throw new Error('Google đã nhận key nhưng dự án chưa được cấp quyền gọi Agent Platform API hoặc model này. Vui lòng kiểm tra lại quyền truy cập hoặc chọn model khác.');
-                    }
-                } else {
-                    throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API. Vui lòng kiểm tra lại API Key trong Cài đặt.');
-                }
+                throw new Error('API Key không hợp lệ, bị chặn hoặc không có quyền dùng Gemini API. Vui lòng kiểm tra lại API Key trong Cài đặt.');
             }
+
+            const status = (error?.status || error?.code || error?.response?.status || '').toString();
+            const message = `${error?.message || error || ''}`.toLowerCase();
+            const isUnavailable = ['503', '502', '504'].includes(status) || /unavailable|overloaded|temporarily unavailable|deadline_exceeded|try again later|high demand/.test(message);
 
             if (errorType === 'QUOTA_EXCEEDED') {
                 sawQuotaError = true;
-            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND') {
+            } else if (errorType === 'MODEL_OVERLOADED' || errorType === 'NOT_FOUND' || isUnavailable) {
                 sawOverloadError = true;
             } else {
-                if (errorType !== 'INVALID_API_KEY') sawUnknownError = true;
+                sawUnknownError = true;
             }
 
-            if (errorType === 'UNKNOWN') throw error;
+            if (errorType === 'UNKNOWN' && !isUnavailable) throw error;
 
             if (i < orderedModels.length - 1) {
                 await delay(errorType === 'QUOTA_EXCEEDED' ? 2000 : 1000);
